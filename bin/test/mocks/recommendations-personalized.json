@@ -1,9 +1,0 @@
-{
-  "profile_id": "placeholder",
-  "source": "personalized",
-  "items": [
-    { "id": "movie-rec-1", "title": "Because you like Action" },
-    { "id": "movie-rec-2", "title": "Because you like Comedy" },
-    { "id": "movie-rec-3", "title": "Top match for you" }
-  ]
-}

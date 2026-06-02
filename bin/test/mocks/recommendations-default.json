@@ -1,9 +1,0 @@
-{
-  "profile_id": "placeholder",
-  "source": "default",
-  "items": [
-    { "id": "movie-pop-1", "title": "Popular Pick 1" },
-    { "id": "movie-pop-2", "title": "Popular Pick 2" },
-    { "id": "movie-pop-3", "title": "Popular Pick 3" }
-  ]
-}
