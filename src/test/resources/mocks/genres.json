@@ -1,0 +1,10 @@
+{
+  "genres": [
+    { "id": "genre-action", "name": "Action" },
+    { "id": "genre-comedy", "name": "Comedy" },
+    { "id": "genre-drama", "name": "Drama" },
+    { "id": "genre-scifi", "name": "Sci-Fi" },
+    { "id": "genre-horror", "name": "Horror" },
+    { "id": "genre-romance", "name": "Romance" }
+  ]
+}

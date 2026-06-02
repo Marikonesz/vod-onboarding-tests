@@ -1,0 +1,211 @@
+{
+  "suite": "VOD Profile Personalization",
+  "feature": "Опитувальник зацікавленостей нового профілю",
+  "cases": [
+    {
+      "id": "VP-001",
+      "title": "POST valid vod-preferences returns 201",
+      "type": "positive",
+      "layer": "api",
+      "preconditions": ["New profile exists", "Survey not completed"],
+      "steps": [
+        { "action": "POST /v1/profile/{id}/vod-preferences with 3+ genre_ids and skipped=false", "expected": "HTTP 201, saved=true" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.postValidPreferences_returns201"
+    },
+    {
+      "id": "VP-002",
+      "title": "GET preferences reflects last POST",
+      "type": "positive",
+      "layer": "api",
+      "preconditions": ["Preferences were saved"],
+      "steps": [
+        { "action": "GET /v1/profile/{id}/vod-preferences", "expected": "genre_ids and movie_ids match POST body" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.getAfterPost_returnsSavedData"
+    },
+    {
+      "id": "VP-003",
+      "title": "Fewer than 3 genres rejected",
+      "type": "negative",
+      "layer": "api",
+      "preconditions": ["skipped=false"],
+      "steps": [
+        { "action": "POST with 2 genre_ids", "expected": "HTTP 400 validation_error, min_required=3" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.postTwoGenres_returns400"
+    },
+    {
+      "id": "VP-004",
+      "title": "Zero genres rejected when not skipped",
+      "type": "negative",
+      "layer": "api",
+      "preconditions": [],
+      "steps": [
+        { "action": "POST with empty genre_ids", "expected": "HTTP 400" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.postZeroGenres_returns400"
+    },
+    {
+      "id": "VP-005",
+      "title": "Exactly 3 genres accepted (boundary)",
+      "type": "boundary",
+      "layer": "api",
+      "preconditions": [],
+      "steps": [
+        { "action": "POST with exactly 3 genre_ids", "expected": "HTTP 201" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.postExactlyThreeGenres_returns201"
+    },
+    {
+      "id": "VP-006",
+      "title": "Skip survey with skipped=true",
+      "type": "positive",
+      "layer": "api",
+      "preconditions": [],
+      "steps": [
+        { "action": "POST skipped=true, empty genre_ids", "expected": "HTTP 201" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.postSkipped_returns201"
+    },
+    {
+      "id": "VP-007",
+      "title": "Default recommendations before save",
+      "type": "positive",
+      "layer": "api",
+      "preconditions": ["No preferences saved"],
+      "steps": [
+        { "action": "GET /v1/profile/{id}/recommendations", "expected": "source=default" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.recommendations_beforeSave_returnsDefault"
+    },
+    {
+      "id": "VP-008",
+      "title": "Personalized recommendations after valid save",
+      "type": "positive",
+      "layer": "api",
+      "preconditions": ["3+ genres saved, skipped=false"],
+      "steps": [
+        { "action": "GET recommendations", "expected": "source=personalized" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.recommendations_afterSave_returnsPersonalized"
+    },
+    {
+      "id": "VP-009",
+      "title": "Skip keeps default recommendations",
+      "type": "positive",
+      "layer": "api",
+      "preconditions": ["User skipped survey"],
+      "steps": [
+        { "action": "POST skipped=true then GET recommendations", "expected": "source=default" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.recommendations_afterSkip_returnsDefault"
+    },
+    {
+      "id": "VP-010",
+      "title": "GET empty profile returns empty preferences",
+      "type": "positive",
+      "layer": "api",
+      "preconditions": [],
+      "steps": [
+        { "action": "GET without prior POST", "expected": "empty genre_ids, skipped=false" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.getWithoutPost_returnsEmptyPreferences"
+    },
+    {
+      "id": "VP-011",
+      "title": "POST invalid JSON returns 400",
+      "type": "negative",
+      "layer": "api",
+      "preconditions": [],
+      "steps": [
+        { "action": "POST malformed JSON body", "expected": "HTTP 400 invalid_json" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.postInvalidJson_returns400"
+    },
+    {
+      "id": "VP-012",
+      "title": "Second POST overwrites preferences",
+      "type": "positive",
+      "layer": "api",
+      "preconditions": ["Preferences already saved"],
+      "steps": [
+        { "action": "POST twice with different payloads", "expected": "GET reflects second POST" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.postTwice_secondWinsOnGet"
+    },
+    {
+      "id": "VP-013",
+      "title": "POST with five movies and three genres (boundary)",
+      "type": "boundary",
+      "layer": "api",
+      "preconditions": [],
+      "steps": [
+        { "action": "POST 3 genres and 5 movie_ids", "expected": "HTTP 201" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.postFullMovieSelection_returns201"
+    },
+    {
+      "id": "VP-UI-001",
+      "title": "Далі disabled until 3 genres",
+      "type": "positive",
+      "layer": "ui",
+      "preconditions": ["Onboarding screen step 1"],
+      "steps": [
+        { "action": "Select 0-2 genres", "expected": "btn-next disabled" },
+        { "action": "Select 3rd genre", "expected": "btn-next enabled" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "OnboardingUiTest.nextButton_disabledUntilThreeGenres"
+    },
+    {
+      "id": "VP-UI-002",
+      "title": "Далі advances to movies step",
+      "type": "positive",
+      "layer": "ui",
+      "preconditions": ["3 genres selected on step 1"],
+      "steps": [
+        { "action": "Click Далі", "expected": "Movies step visible, step label Крок 2, next disabled" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "OnboardingUiTest.nextButton_advancesToMovieStep"
+    },
+    {
+      "id": "VP-UI-003",
+      "title": "Пропустити applies default recommendations",
+      "type": "positive",
+      "layer": "ui",
+      "preconditions": ["Onboarding visible"],
+      "steps": [
+        { "action": "Click Пропустити", "expected": "Status shows default recommendations" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "OnboardingUiTest.skipButton_usesDefaultRecommendations"
+    },
+    {
+      "id": "VP-UI-004",
+      "title": "Complete flow shows personalized recommendations",
+      "type": "positive",
+      "layer": "ui",
+      "preconditions": ["Onboarding visible"],
+      "steps": [
+        { "action": "Select 3 genres, 5 movies, finish survey", "expected": "Status shows personalized recommendations" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "OnboardingUiTest.completeFlow_showsPersonalizedRecommendations"
+    }
+  ]
+}

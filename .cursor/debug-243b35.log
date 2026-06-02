@@ -1,0 +1,2 @@
+{"sessionId":"243b35","runId":"pre-fix","hypothesisId":"H1","location":"PlaywrightTestBase:playwrightSetUp","message":"VodApiClient created","data":{"baseUrl":"https://app.vod-platform.local"},"timestamp":1780391741127}
+{"sessionId":"243b35","runId":"pre-fix","hypothesisId":"H2","location":"VodApiClient:postPreferences","message":"POST request URL","data":{"profileId":"profile-vp-002","url":"https://app.vod-platform.local/v1/profile/profile-vp-002/vod-preferences"},"timestamp":1780391741133}

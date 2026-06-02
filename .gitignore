@@ -1,0 +1,11 @@
+build/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.DS_Store
+.gradle/
+playwright-report/
+test-results/
+allure-results/

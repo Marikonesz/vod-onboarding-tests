@@ -1,0 +1,7 @@
+/Users/oleksandrmoroz/vod-onboarding-tests/src/test/java/com/vod/onboarding/api/VodPreferencesApiTest.java
+/Users/oleksandrmoroz/vod-onboarding-tests/src/test/java/com/vod/onboarding/support/LocalStaticServer.java
+/Users/oleksandrmoroz/vod-onboarding-tests/src/test/java/com/vod/onboarding/support/MockJsonLoader.java
+/Users/oleksandrmoroz/vod-onboarding-tests/src/test/java/com/vod/onboarding/support/PlaywrightTestBase.java
+/Users/oleksandrmoroz/vod-onboarding-tests/src/test/java/com/vod/onboarding/support/PreferencesState.java
+/Users/oleksandrmoroz/vod-onboarding-tests/src/test/java/com/vod/onboarding/support/VodApiRoutes.java
+/Users/oleksandrmoroz/vod-onboarding-tests/src/test/java/com/vod/onboarding/ui/OnboardingUiTest.java
