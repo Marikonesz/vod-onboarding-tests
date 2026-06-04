@@ -81,6 +81,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 1. Download Allure results from all shards
       - name: Download Allure results
         uses: actions/download-artifact@v4
         with:
@@ -89,24 +90,41 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
-      - name: Load Allure history and Generate Report
-        uses: some-one/allure-report-action@v1.12
-        id: allure-report
-        with:
-          allure_results: allure-results
-          allure_report: allure-report
-          allure_history: allure-history
-          keep_reports: 20
+      # 2. Install official Allure CLI directly on the runner
+      - name: Install Allure CLI
+        run: |
+          wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
+          tar -zxf allure-2.27.0.tgz
+          sudo mv allure-2.27.0 /opt/allure
+          sudo ln -s /opt/allure/bin/allure /usr/bin/allure
 
+      # 3. Download previous history from GitHub Pages to keep charts/trends
+      - name: Download previous Allure history
+        run: |
+          mkdir -p allure-results/history
+          # We fetch the history folder from your live GitHub Pages site
+          curl -sSL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/history/history.json" > allure-results/history/history.json || true
+          curl -sSL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/history/duration-trend.json" > allure-results/history/duration-trend.json || true
+          curl -sSL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/history/categories-trend.json" > allure-results/history/categories-trend.json || true
+          curl -sSL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/history/retry-trend.json" > allure-results/history/retry-trend.json || true
+
+      # 4. Generate the HTML report (Allure CLI will automatically merge the history)
+      - name: Generate Allure Report
+        run: |
+          allure generate allure-results --clean -o allure-report
+
+      # 5. Upload the generated report folder as a Pages artifact
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: allure-report
 
+      # 6. Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
 
+      # 7. Add link to GitHub Summary
       - name: Add link to Summary
         if: always()
         run: |
