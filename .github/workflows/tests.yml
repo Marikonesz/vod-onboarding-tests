@@ -15,6 +15,7 @@ jobs:
     name: Validate catalog
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-java-gradle
       - run: ./gradlew validateCatalog --no-daemon
 
@@ -29,6 +30,7 @@ jobs:
           - { shard: 0, shard_total: 2 }
           - { shard: 1, shard_total: 2 }
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-java-gradle
 
       - name: Run API tests
@@ -49,6 +51,7 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-java-gradle
 
       - name: Install Playwright Chromium
@@ -88,8 +91,6 @@ jobs:
         continue-on-error: true
 
       - uses: ./.github/actions/setup-java-gradle
-        with:
-          checkout: 'false'
 
       - name: Download Allure results
         uses: actions/download-artifact@v4

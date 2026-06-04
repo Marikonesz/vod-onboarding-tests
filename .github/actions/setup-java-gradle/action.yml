@@ -1,16 +1,8 @@
 name: Setup Java and Gradle
-description: Checkout (optional), JDK 17, Gradle cache
-inputs:
-  checkout:
-    description: Run actions/checkout
-    required: false
-    default: 'true'
+description: JDK 17 and Gradle cache (run actions/checkout before this local action)
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v4
-      if: inputs.checkout == 'true'
-
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
