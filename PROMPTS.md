@@ -43,6 +43,7 @@ This file stores your prompts to the AI in chronological order.
 | 35 | `i meen paralell via junit!!!` |
 | 36 | Fix invalid workflow: `matrix.shard + 1` and `env.*` in job `name` |
 | 37 | `try to fix` (CI: aggregate job missing script; Pages configure 404) |
+| 38 | `add to mistakes - Agent created a lot of custom actions to ci instead of using standard` |
 
 ---
 
@@ -243,9 +244,15 @@ do it
 
 (Context: implement assignment gap closure — one-time survey endpoint, API min 5 movies, genre-filtered survey-movies, UI tests VP-UI-005/006, contract/catalog updates.)
 
-### Prompt 29–36 (CI, parallel, workflow)
+### Prompt 29–38 (CI, parallel, workflow, Allure)
 
-See index rows 29–36. Key user correction (Prompt 35): **parallel via JUnit 5**, not Gradle `maxParallelForks` or extra Gradle shard tasks for local runs.
+See index rows 29–38. Key user corrections: **parallel via JUnit 5** (Prompt 35); **one summary table + one Allure link**; avoid over-custom CI (Prompt 38 — prefer standard/marketplace actions over `.github/actions/*` composites).
+
+### Prompt 38
+
+```text
+add to mistakes - Agent created a lot of custom actions to ci instead of using standard
+```
 
 ## AI-generated share (~80%)
 
@@ -279,6 +286,7 @@ Most of `vod-preferences.json`, mock route handlers, and JUnit/Playwright tests 
 | GitHub Actions workflow | Used `${{ env.API_SHARD_TOTAL }}` in job `name` | Workflow invalid: `Unrecognized named-value: 'env'` in job name | `env` is not allowed in `jobs.<id>.name`; put `shard_total` in matrix `include` and use `${{ matrix.shard_total }}`; keep workflow-level `env` for steps only (e.g. test-summary) |
 | CI aggregate job | `aggregate-results` ran scripts without `actions/checkout` | `bash: .github/scripts/summarize-test-results.sh: No such file or directory` (exit 127) | Add `checkout@v4` before download-artifact / script steps in every job that uses repo scripts |
 | GitHub Pages | `configure-pages` failed hard when Pages not enabled in repo | Job failed on 404; deploy steps skipped | `continue-on-error` on `configure-pages`; gate upload/deploy on `steps.pages.outcome == 'success'`; artifact `allure-report-combined` still uploaded |
+| CI workflow design | Agent created many **local composite actions** (`.github/actions/setup-java-gradle`, `upload-test-artifacts`, `restore-allure-history`, `publish-allure-pages`) and bash scripts for Allure/history/summary instead of **standard GitHub / marketplace actions** | Extra maintenance; “Can't find action.yml” without checkout first; fragile Allure report steps on CI | Use inline **`actions/checkout`**, **`actions/setup-java`**, **`gradle/actions/setup-gradle`**, **`actions/upload-artifact`** / **`download-artifact`**; Allure via maintained action (e.g. **`simple-elf/allure-report-action`** with `allure_history`); avoid `.github/actions/*` unless truly project-specific |
 
 ## Note about concern-based refactor (follow-up)
 
