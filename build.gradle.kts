@@ -1,6 +1,6 @@
 plugins {
     java
-    id("io.qameta.allure") version "2.12.0"
+    id("io.qameta.allure") version "3.2.0"
 }
 
 group = "com.vod.onboarding"
@@ -41,14 +41,13 @@ allure {
     adapter {
         autoconfigure.set(true)
         aspectjWeaver.set(true)
+        allureJavaVersion.set(allureVersion)
+        categoriesFile.set(layout.projectDirectory.file("config/allure/categories.json"))
         frameworks {
             junit5 {
-                adapterVersion.set(allureVersion)
+                enabled.set(true)
             }
         }
-    }
-    report {
-        version.set(allureVersion)
     }
 }
 

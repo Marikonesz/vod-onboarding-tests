@@ -18,8 +18,6 @@ if [[ -z "$(find "$RESULTS" -maxdepth 1 -name '*-result.json' -print -quit 2>/de
   exit 0
 fi
 
-cp -f src/test/resources/allure/categories.json "$RESULTS/categories.json"
-
 RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 cat >"$RESULTS/executor.json" <<EOF
 {

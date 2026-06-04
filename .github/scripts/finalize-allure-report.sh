@@ -12,6 +12,7 @@ prepare() {
 }
 
 generate() {
+  rm -rf build/copy-categories
   ./gradlew allureReport --no-daemon
 }
 
