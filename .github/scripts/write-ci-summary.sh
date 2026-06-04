@@ -5,7 +5,7 @@ set -euo pipefail
 JUNIT_DIR="${1:-merged-junit}"
 ALLURE_URL="${2:-}"
 
-read -r API_TOTAL API_PASSED API_FAILED API_SKIPPED API_RATE UI_TOTAL UI_PASSED UI_FAILED UI_SKIPPED UI_RATE <<EOF
+read -r TOTAL PASSED FAILED SKIPPED RATE <<EOF
 $(python3 - "$JUNIT_DIR" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
@@ -31,47 +31,36 @@ def stats_for(paths):
     return total, passed, failed, skipped, rate
 
 root = Path(sys.argv[1])
-all_xml = list(root.rglob("TEST-*.xml")) if root.is_dir() else []
-api_xml = [p for p in all_xml if "junit-results-api" in str(p)]
-ui_xml = [p for p in all_xml if "junit-results-ui" in str(p)]
+if not root.is_dir():
+    print("0 0 0 0 0.0")
+    sys.exit(0)
 
-def emit(stats):
-    t, p, f, s, r = stats
-    print(f"{t} {p} {f} {s} {r}", end=" ")
-
-emit(stats_for(api_xml))
-emit(stats_for(ui_xml))
+all_xml = sorted(root.rglob("TEST-*.xml"))
+t, p, f, s, r = stats_for(all_xml)
+print(f"{t} {p} {f} {s} {r}")
 PY
 )
 EOF
 
-T=$((API_TOTAL + UI_TOTAL))
-P=$((API_PASSED + UI_PASSED))
-F=$((API_FAILED + UI_FAILED))
-S=$((API_SKIPPED + UI_SKIPPED))
-if [[ "$T" -gt 0 ]]; then
-  RATE=$(python3 -c "print(round(${P} / ${T} * 100, 1))")
-else
-  RATE="0.0"
+if [[ "$TOTAL" -eq 0 ]]; then
+  echo "::warning title=Test results::No TEST-*.xml under ${JUNIT_DIR} (check junit-results-* artifacts were uploaded)."
 fi
 
-echo "::notice title=Pass rate::${P}/${T} passed (${RATE}%) — failed: ${F}, skipped: ${S}"
+echo "::notice title=Pass rate::${PASSED}/${TOTAL} passed (${RATE}%) — failed: ${FAILED}, skipped: ${SKIPPED}"
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   {
     echo "## Test results"
     echo ""
-    echo "| Suite | Pass rate | Passed | Failed | Skipped | Total |"
-    echo "|-------|----------:|-------:|-------:|--------:|------:|"
-    echo "| API | ${API_RATE}% | ${API_PASSED} | ${API_FAILED} | ${API_SKIPPED} | ${API_TOTAL} |"
-    echo "| UI | ${UI_RATE}% | ${UI_PASSED} | ${UI_FAILED} | ${UI_SKIPPED} | ${UI_TOTAL} |"
-    echo "| **All** | **${RATE}%** | **${P}** | **${F}** | **${S}** | **${T}** |"
+    echo "| Pass rate | Passed | Failed | Skipped | Total |"
+    echo "|----------:|-------:|-------:|--------:|------:|"
+    echo "| **${RATE}%** | **${PASSED}** | **${FAILED}** | **${SKIPPED}** | **${TOTAL}** |"
     echo ""
     echo "## Allure report"
     echo ""
     if [[ -n "$ALLURE_URL" ]]; then
       LINK="${ALLURE_URL%/}/index.html"
-      echo "### [View Allure report](${LINK})"
+      echo "[View Allure report](${LINK})"
     else
       RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
       echo "Download artifact **allure-report-combined**, unzip, open \`index.html\`."
