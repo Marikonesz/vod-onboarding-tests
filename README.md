@@ -67,7 +67,7 @@ Compile only (no browser):
 
 Open `build/reports/allure-report/allureReport/index.html`. Tests link to TMS via `@TmsLink("VP-001")` etc.
 
-**CI:** the workflow publishes a combined API+UI report to GitHub Pages (job **Allure report (GitHub Pages)**). Enable **Settings → Pages → Source: GitHub Actions**, then open the deployment URL from the job run Summary or the **publish-allure** job environment link.
+**CI:** job **Allure report (GitHub Pages)** builds a combined report and uploads artifact **allure-report-combined** (always). For a live URL, open **Settings → Pages → Build and deployment → Source: GitHub Actions** in your repo (`https://github.com/<owner>/<repo>/settings/pages`), then re-run the workflow; the job Summary will show **View Allure report**.
 
 ## TestRail export
 

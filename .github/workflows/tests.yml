@@ -194,6 +194,17 @@ jobs:
           fi
           ./gradlew allureReport --no-daemon
 
+      - name: Upload combined Allure report (artifact)
+        if: env.skip_publish != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report-combined
+          path: build/reports/allure-report/allureReport
+
+      - name: Configure GitHub Pages
+        if: env.skip_publish != 'true'
+        uses: actions/configure-pages@v5
+
       - name: Upload Pages artifact
         if: env.skip_publish != 'true'
         uses: actions/upload-pages-artifact@v3
@@ -203,13 +214,34 @@ jobs:
       - name: Deploy Allure to GitHub Pages
         if: env.skip_publish != 'true'
         id: deploy
+        continue-on-error: true
         uses: actions/deploy-pages@v4
 
-      - name: Allure report link (published)
-        if: always() && env.skip_publish != 'true' && steps.deploy.outputs.page_url != ''
+      - name: Allure report links (combined)
+        if: always() && env.skip_publish != 'true'
         env:
           ALLURE_PAGE_URL: ${{ steps.deploy.outputs.page_url }}
-        run: bash .github/scripts/add-allure-report-link.sh "Combined (API + UI)" "allure-pages" "allure-results-api + allure-results-ui"
+          PAGES_SETTINGS_URL: ${{ format('{0}/{1}/settings/pages', github.server_url, github.repository) }}
+        run: |
+          if [[ "${{ steps.deploy.outcome }}" == "failure" ]]; then
+            echo "::warning title=GitHub Pages not enabled::Enable Pages → Build type: GitHub Actions at ${PAGES_SETTINGS_URL}"
+            {
+              echo "## Allure report (combined API + UI)"
+              echo ""
+              echo "GitHub Pages deploy failed (404). **Enable Pages once:**"
+              echo ""
+              echo "1. Open [Repository Pages settings](${PAGES_SETTINGS_URL})"
+              echo "2. **Build and deployment → Source:** select **GitHub Actions**"
+              echo "3. Re-run this workflow"
+              echo ""
+              echo "### Download report now"
+              echo ""
+              echo "- [Workflow run — Artifacts](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+              echo "  - **allure-report-combined** — unzip and open \`index.html\` in a browser"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            bash .github/scripts/add-allure-report-link.sh "Combined (API + UI)" "allure-report-combined" "allure-results-api + allure-results-ui"
+          fi
 
   test-summary:
     name: Pass rate (all tests)
@@ -254,10 +286,10 @@ jobs:
             echo "## Allure report"
             echo ""
             if [[ -n "${ALLURE_URL}" ]]; then
-              echo "### [View Allure report](${ALLURE_URL})"
+              echo "### [View Allure report (GitHub Pages)](${ALLURE_URL})"
             else
-              echo "Open this workflow run → **Artifacts** → \`allure-report-api\` / \`allure-report-ui\`"
+              echo "Download **allure-report-combined** (or \`allure-report-api\` / \`allure-report-ui\`) from [Artifacts](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}), unzip, open \`index.html\`."
               echo ""
-              echo "_GitHub Pages publish was skipped (fork PR or no results). Enable Pages in repo settings for live reports on \`main\`._"
+              echo "For a live URL: [enable GitHub Pages](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/settings/pages) → Source **GitHub Actions**, then re-run the workflow."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
