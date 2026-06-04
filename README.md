@@ -55,13 +55,17 @@ Compile only (no browser):
 ./gradlew test -Pgroups=api
 ./gradlew test -Pgroups=ui
 # Sequential (debug): ./gradlew test -PsingleThread
-# CI sharding (one shard per Gradle invocation):
-./gradlew test -Pgroups=api -PshardIndex=0 -PshardTotal=3
+# CI-style API shards (2 shards; UI single job):
+./gradlew test -Pgroups=api -PshardIndex=0 -PshardTotal=2
+./gradlew test -Pgroups=api -PshardIndex=1 -PshardTotal=2
+./gradlew test -Pgroups=ui
 ```
 
-**Parallel via JUnit 5:** `./gradlew test` runs test **methods in parallel threads** in one JVM (`@Execution(CONCURRENT)` on `BaseTest`, `junit-platform.properties`). Thread pool size follows CPU count (Gradle sets `fixed.parallelism`). Mock state is thread-local (`ScenarioState`).
+**Parallel via JUnit 5:** concurrent test methods in one JVM (`@Execution(CONCURRENT)`, `junit-platform.properties`). **CI shards** use Gradle `includeTestsMatching` per class (out-of-shard tests are not counted as JUnit skipped).
 
-**IDE:** enable parallel in the JUnit run template, or use **Run tests with Gradle** so `junit-platform.properties` applies.
+**CI workflow:** one **Test report** job — single pass-rate table + one Allure link to `index.html`.
+
+**IDE:** use **Run tests with Gradle**, or enable JUnit parallel in the run template.
 
 ```bash
 ./gradlew test --tests "com.vod.onboarding.api.VodPreferencesApiTest"
@@ -77,7 +81,7 @@ Compile only (no browser):
 
 Open `build/reports/allure-report/allureReport/index.html`. Tests link to TMS via `@TmsLink("VP-001")` etc.
 
-**CI:** tests run in **parallel matrix shards** (API: 3 jobs, UI: 2 jobs) after catalog validation; see `env.API_SHARD_TOTAL` / `env.UI_SHARD_TOTAL` in `.github/workflows/tests.yml`. Job **Allure report (GitHub Pages)** builds a combined report and uploads artifact **allure-report-combined** (always). For a live URL, open **Settings → Pages → Build and deployment → Source: GitHub Actions** in your repo (`https://github.com/<owner>/<repo>/settings/pages`), then re-run the workflow; the job Summary will show **View Allure report**.
+**CI:** API **2** parallel shards + UI **1** job → **Test report** job (one summary table, one Allure `index.html` link). See `.github/workflows/tests.yml`. For a live URL, open **Settings → Pages → Build and deployment → Source: GitHub Actions** in your repo (`https://github.com/<owner>/<repo>/settings/pages`), then re-run the workflow; the job Summary will show **View Allure report**.
 
 ## TestRail export
 

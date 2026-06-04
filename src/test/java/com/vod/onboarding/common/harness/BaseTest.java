@@ -4,7 +4,6 @@ import com.vod.onboarding.api.mock.EmbeddedMockServer;
 import com.vod.onboarding.common.domain.ScenarioState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
@@ -19,9 +18,10 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
  * {@link com.vod.onboarding.ui.UiTestBase}.
  *
  * <p>Tests run concurrently via JUnit 5 parallel execution (see {@code junit-platform.properties}).
+ * CI shards use Gradle {@code includeTestsMatching} (see {@code build.gradle.kts}), not
+ * {@link CiShardExtension}, so out-of-shard tests are not reported as JUnit "skipped".
  */
 @Execution(ExecutionMode.CONCURRENT)
-@ExtendWith(CiShardExtension.class)
 public abstract class BaseTest {
   /** Non-null only when {@link #usingMock} is {@code true}. */
   protected EmbeddedMockServer mockServer;

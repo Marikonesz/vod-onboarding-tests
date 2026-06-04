@@ -60,10 +60,38 @@ tasks.withType<JavaExec>().configureEach {
     )
 }
 
+fun testClassFqns(tag: String?): List<String> {
+    val root = file("src/test/java")
+    return fileTree(root) { include("**/*Test.java") }.files
+        .map { f ->
+            f.relativeTo(root).invariantSeparatorsPath.removeSuffix(".java").replace("/", ".")
+        }
+        .filter { fqn ->
+            when (tag) {
+                "api" -> fqn.contains(".api.")
+                "ui" -> fqn.contains(".ui.")
+                else -> true
+            }
+        }
+        .sorted()
+}
+
 tasks.test {
     useJUnitPlatform {
         if (project.hasProperty("groups")) {
             includeTags(project.property("groups") as String)
+        }
+    }
+
+    if (project.hasProperty("shardIndex") && project.hasProperty("shardTotal")) {
+        val shardIndex = project.property("shardIndex").toString().toInt()
+        val shardTotal = project.property("shardTotal").toString().toInt()
+        val tag = project.findProperty("groups")?.toString()
+        val shardClasses =
+            testClassFqns(tag).filter { Math.floorMod(it.hashCode(), shardTotal) == shardIndex }
+        filter {
+            isFailOnNoMatchingTests = shardClasses.isNotEmpty()
+            shardClasses.forEach { includeTestsMatching(it) }
         }
     }
 

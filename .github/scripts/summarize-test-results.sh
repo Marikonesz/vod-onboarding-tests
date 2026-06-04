@@ -10,35 +10,36 @@ if [[ ! -d "$RESULTS_DIR" ]]; then
   exit 0
 fi
 
-read -r TOTAL FAILURES ERRORS SKIPPED PASSED RATE <<EOF
+read -r TOTAL FAILURES SKIPPED PASSED RATE <<EOF
 $(python3 - "$RESULTS_DIR" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 results_dir = Path(sys.argv[1])
-total = failures = errors = skipped = 0
+total = failures = skipped = 0
 files = list(results_dir.rglob("TEST-*.xml"))
 if not files:
-    print("0 0 0 0 0 0.0")
+    print("0 0 0 0 0.0")
     sys.exit(0)
 
 for path in files:
     root = ET.parse(path).getroot()
-    # Gradle/JUnit5: root is <testsuite> or nested; sum top-level suites
     suites = [root] if root.tag == "testsuite" else root.findall("testsuite")
     if not suites:
         suites = [root]
     for suite in suites:
-        total += int(suite.attrib.get("tests", 0))
-        failures += int(suite.attrib.get("failures", 0))
-        errors += int(suite.attrib.get("errors", 0))
-        skipped += int(suite.attrib.get("skipped", 0))
+        for tc in suite.findall("testcase"):
+            total += 1
+            if tc.find("failure") is not None or tc.find("error") is not None:
+                failures += 1
+            elif tc.find("skipped") is not None:
+                skipped += 1
 
-failed = failures + errors
+failed = failures
 passed = max(total - failed - skipped, 0)
 rate = round((passed / total) * 100, 1) if total else 0.0
-print(f"{total} {failures} {errors} {skipped} {passed} {rate}")
+print(f"{total} {failures} {skipped} {passed} {rate}")
 PY
 )
 EOF
@@ -48,7 +49,7 @@ if [[ "$TOTAL" -eq 0 ]]; then
   exit 0
 fi
 
-FAILED=$((FAILURES + ERRORS))
+FAILED=$FAILURES
 echo "::notice title=${LABEL} pass rate::${PASSED}/${TOTAL} passed (${RATE}%) — failed: ${FAILED}, skipped: ${SKIPPED}"
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then

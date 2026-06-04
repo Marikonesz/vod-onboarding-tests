@@ -5,8 +5,8 @@ on:
   pull_request:
 
 env:
-  API_SHARD_TOTAL: 3
-  UI_SHARD_TOTAL: 2
+  API_SHARD_TOTAL: 2
+  UI_SHARD_TOTAL: 1
 
 permissions:
   contents: read
@@ -33,59 +33,7 @@ jobs:
         run: ./gradlew validateCatalog --no-daemon
 
   api-tests:
-    name: API tests (shard ${{ matrix.shard }}/${{ matrix.shard_total }})
-    needs: validate
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { shard: 0, shard_total: 3 }
-          - { shard: 1, shard_total: 3 }
-          - { shard: 2, shard_total: 3 }
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Run API tests (shard ${{ matrix.shard }}/${{ matrix.shard_total }})
-        id: api-test
-        run: |
-          ./gradlew test -Pgroups=api \
-            -PshardIndex=${{ matrix.shard }} \
-            -PshardTotal=${{ matrix.shard_total }} \
-            --no-daemon
-
-      - name: API test pass rate
-        if: always()
-        run: |
-          bash .github/scripts/summarize-test-results.sh \
-            "API tests (shard ${{ matrix.shard }}/${{ matrix.shard_total }})"
-
-      - name: Upload Allure results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results-api-shard-${{ matrix.shard }}
-          path: build/allure-results
-
-      - name: Upload JUnit results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit-results-api-shard-${{ matrix.shard }}
-          path: build/test-results/test
-          if-no-files-found: ignore
-
-  ui-tests:
-    name: UI tests (shard ${{ matrix.shard }}/${{ matrix.shard_total }})
+    name: API shard ${{ matrix.shard }}/${{ matrix.shard_total }}
     needs: validate
     runs-on: ubuntu-latest
     strategy:
@@ -106,114 +54,32 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Install Playwright Chromium
-        run: ./gradlew installPlaywright --no-daemon
-
-      - name: Run UI tests (shard ${{ matrix.shard }}/${{ matrix.shard_total }})
-        id: ui-test
+      - name: Run API tests
         run: |
-          ./gradlew test -Pgroups=ui \
+          ./gradlew test -Pgroups=api \
             -PshardIndex=${{ matrix.shard }} \
             -PshardTotal=${{ matrix.shard_total }} \
             --no-daemon
-
-      - name: UI test pass rate
-        if: always()
-        run: |
-          bash .github/scripts/summarize-test-results.sh \
-            "UI tests (shard ${{ matrix.shard }}/${{ matrix.shard_total }})"
 
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: allure-results-ui-shard-${{ matrix.shard }}
+          name: allure-results-api-shard-${{ matrix.shard }}
           path: build/allure-results
-
-      - name: Upload Playwright traces on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-traces-shard-${{ matrix.shard }}
-          path: build/playwright-traces
-          if-no-files-found: ignore
 
       - name: Upload JUnit results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: junit-results-ui-shard-${{ matrix.shard }}
+          name: junit-results-api-shard-${{ matrix.shard }}
           path: build/test-results/test
           if-no-files-found: ignore
 
-  aggregate-results:
-    name: Aggregate pass rate
+  ui-tests:
+    name: UI tests
+    needs: validate
     runs-on: ubuntu-latest
-    needs: [api-tests, ui-tests]
-    if: always()
-    outputs:
-      api_total: ${{ steps.api-sum.outputs.total }}
-      api_passed: ${{ steps.api-sum.outputs.passed }}
-      api_failed: ${{ steps.api-sum.outputs.failed }}
-      api_skipped: ${{ steps.api-sum.outputs.skipped }}
-      api_pass_rate: ${{ steps.api-sum.outputs.pass_rate }}
-      ui_total: ${{ steps.ui-sum.outputs.total }}
-      ui_passed: ${{ steps.ui-sum.outputs.passed }}
-      ui_failed: ${{ steps.ui-sum.outputs.failed }}
-      ui_skipped: ${{ steps.ui-sum.outputs.skipped }}
-      ui_pass_rate: ${{ steps.ui-sum.outputs.pass_rate }}
-      total: ${{ steps.all-sum.outputs.total }}
-      passed: ${{ steps.all-sum.outputs.passed }}
-      failed: ${{ steps.all-sum.outputs.failed }}
-      skipped: ${{ steps.all-sum.outputs.skipped }}
-      pass_rate: ${{ steps.all-sum.outputs.pass_rate }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download API JUnit results (all shards)
-        uses: actions/download-artifact@v4
-        with:
-          pattern: junit-results-api-shard-*
-          path: merged-junit/api
-          merge-multiple: true
-        continue-on-error: true
-
-      - name: Download UI JUnit results (all shards)
-        uses: actions/download-artifact@v4
-        with:
-          pattern: junit-results-ui-shard-*
-          path: merged-junit/ui
-          merge-multiple: true
-        continue-on-error: true
-
-      - name: API pass rate (all shards)
-        id: api-sum
-        if: always()
-        run: bash .github/scripts/summarize-test-results.sh "API tests (all shards)" merged-junit/api
-
-      - name: UI pass rate (all shards)
-        id: ui-sum
-        if: always()
-        run: bash .github/scripts/summarize-test-results.sh "UI tests (all shards)" merged-junit/ui
-
-      - name: Overall pass rate
-        id: all-sum
-        if: always()
-        run: bash .github/scripts/summarize-test-results.sh "All tests" merged-junit
-
-  publish-allure:
-    name: Allure report (GitHub Pages)
-    runs-on: ubuntu-latest
-    needs: [api-tests, ui-tests]
-    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-    concurrency:
-      group: pages-allure-${{ github.ref }}
-      cancel-in-progress: true
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    outputs:
-      page_url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -226,35 +92,81 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Download API Allure results (all shards)
+      - name: Install Playwright Chromium
+        run: ./gradlew installPlaywright --no-daemon
+
+      - name: Run UI tests
+        run: ./gradlew test -Pgroups=ui --no-daemon
+
+      - name: Upload Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-ui-shard-0
+          path: build/allure-results
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: build/playwright-traces
+          if-no-files-found: ignore
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-results-ui-shard-0
+          path: build/test-results/test
+          if-no-files-found: ignore
+
+  report:
+    name: Test report
+    runs-on: ubuntu-latest
+    needs: [api-tests, ui-tests]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download JUnit results
         uses: actions/download-artifact@v4
         with:
-          pattern: allure-results-api-shard-*
-          path: incoming-allure/api
+          pattern: junit-results-*
+          path: merged-junit
           merge-multiple: true
         continue-on-error: true
 
-      - name: Download UI Allure results (all shards)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Download Allure results
         uses: actions/download-artifact@v4
         with:
-          pattern: allure-results-ui-shard-*
-          path: incoming-allure/ui
+          pattern: allure-results-*
+          path: incoming-allure
           merge-multiple: true
         continue-on-error: true
 
-      - name: Merge results and generate report
+      - name: Build combined Allure report
+        id: allure
         run: |
           mkdir -p build/allure-results
           find incoming-allure -type f \( -name '*-result.json' -o -name '*-container.json' \) \
             -exec cp -t build/allure-results {} + 2>/dev/null || true
           if [[ -z "$(ls -A build/allure-results 2>/dev/null)" ]]; then
-            echo "::warning::No Allure results to publish; skipping report generation."
             echo "skip_publish=true" >> "$GITHUB_ENV"
             exit 0
           fi
           ./gradlew allureReport --no-daemon
 
-      - name: Upload combined Allure report (artifact)
+      - name: Upload Allure report artifact
         if: env.skip_publish != 'true'
         uses: actions/upload-artifact@v4
         with:
@@ -273,85 +185,13 @@ jobs:
         with:
           path: build/reports/allure-report/allureReport
 
-      - name: Deploy Allure to GitHub Pages
+      - name: Deploy to GitHub Pages
         if: env.skip_publish != 'true' && steps.pages.outcome == 'success'
         id: deploy
         continue-on-error: true
         uses: actions/deploy-pages@v4
 
-      - name: Allure report links (combined)
-        if: always() && env.skip_publish != 'true'
-        env:
-          ALLURE_PAGE_URL: ${{ steps.deploy.outputs.page_url }}
-          PAGES_SETTINGS_URL: ${{ format('{0}/{1}/settings/pages', github.server_url, github.repository) }}
+      - name: Workflow summary (pass rate + Allure link)
+        if: always()
         run: |
-          if [[ "${{ steps.pages.outcome }}" == "failure" || "${{ steps.deploy.outcome }}" == "failure" || -z "${ALLURE_PAGE_URL}" ]]; then
-            echo "::warning title=GitHub Pages not enabled::Enable Pages → Build type: GitHub Actions at ${PAGES_SETTINGS_URL}"
-            {
-              echo "## Allure report (combined API + UI)"
-              echo ""
-              echo "GitHub Pages deploy failed (404). **Enable Pages once:**"
-              echo ""
-              echo "1. Open [Repository Pages settings](${PAGES_SETTINGS_URL})"
-              echo "2. **Build and deployment → Source:** select **GitHub Actions**"
-              echo "3. Re-run this workflow"
-              echo ""
-              echo "### Download report now"
-              echo ""
-              echo "- [Workflow run — Artifacts](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
-              echo "  - **allure-report-combined** — unzip and open \`index.html\` in a browser"
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            bash .github/scripts/add-allure-report-link.sh "Combined (API + UI)" "allure-report-combined" "allure-results-api-shard-* + allure-results-ui-shard-*"
-          fi
-
-  test-summary:
-    name: Pass rate (all tests)
-    runs-on: ubuntu-latest
-    needs: [aggregate-results, publish-allure]
-    if: always()
-    steps:
-      - name: Workflow summary
-        env:
-          API_SHARD_TOTAL: ${{ env.API_SHARD_TOTAL }}
-          UI_SHARD_TOTAL: ${{ env.UI_SHARD_TOTAL }}
-          API_TOTAL: ${{ needs.aggregate-results.outputs.api_total }}
-          API_PASSED: ${{ needs.aggregate-results.outputs.api_passed }}
-          API_FAILED: ${{ needs.aggregate-results.outputs.api_failed }}
-          API_SKIPPED: ${{ needs.aggregate-results.outputs.api_skipped }}
-          API_RATE: ${{ needs.aggregate-results.outputs.api_pass_rate }}
-          UI_TOTAL: ${{ needs.aggregate-results.outputs.ui_total }}
-          UI_PASSED: ${{ needs.aggregate-results.outputs.ui_passed }}
-          UI_FAILED: ${{ needs.aggregate-results.outputs.ui_failed }}
-          UI_SKIPPED: ${{ needs.aggregate-results.outputs.ui_skipped }}
-          UI_RATE: ${{ needs.aggregate-results.outputs.ui_pass_rate }}
-          T: ${{ needs.aggregate-results.outputs.total }}
-          P: ${{ needs.aggregate-results.outputs.passed }}
-          F: ${{ needs.aggregate-results.outputs.failed }}
-          S: ${{ needs.aggregate-results.outputs.skipped }}
-          RATE: ${{ needs.aggregate-results.outputs.pass_rate }}
-          ALLURE_URL: ${{ needs.publish-allure.outputs.page_url }}
-        run: |
-          echo "::notice title=Overall pass rate::${P}/${T} passed (${RATE}%) — failed: ${F}, skipped: ${S}"
-          echo "CI sharding: API=${API_SHARD_TOTAL:-3} shards, UI=${UI_SHARD_TOTAL:-2} shards (parallel matrix jobs)"
-          {
-            echo "## Overall test pass rate"
-            echo ""
-            echo "_Parallel CI: API **${API_SHARD_TOTAL:-3}** shards + UI **${UI_SHARD_TOTAL:-2}** shards_"
-            echo ""
-            echo "| Suite | Pass rate | Passed | Failed | Skipped | Total |"
-            echo "|-------|----------:|-------:|-------:|--------:|------:|"
-            echo "| API | ${API_RATE:-n/a}% | ${API_PASSED:-0} | ${API_FAILED:-0} | ${API_SKIPPED:-0} | ${API_TOTAL:-0} |"
-            echo "| UI | ${UI_RATE:-n/a}% | ${UI_PASSED:-0} | ${UI_FAILED:-0} | ${UI_SKIPPED:-0} | ${UI_TOTAL:-0} |"
-            echo "| **All** | **${RATE:-n/a}%** | **${P:-0}** | **${F:-0}** | **${S:-0}** | **${T:-0}** |"
-            echo ""
-            echo "## Allure report"
-            echo ""
-            if [[ -n "${ALLURE_URL}" ]]; then
-              echo "### [View Allure report (GitHub Pages)](${ALLURE_URL})"
-            else
-              echo "Download **allure-report-combined** from [Artifacts](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}), unzip, open \`index.html\`."
-              echo ""
-              echo "For a live URL: [enable GitHub Pages](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/settings/pages) → Source **GitHub Actions**, then re-run."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+          bash .github/scripts/write-ci-summary.sh merged-junit "${{ steps.deploy.outputs.page_url }}"
