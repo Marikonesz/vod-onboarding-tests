@@ -33,13 +33,16 @@ jobs:
         run: ./gradlew validateCatalog --no-daemon
 
   api-tests:
-    name: API tests (shard ${{ matrix.shard }}/${{ env.API_SHARD_TOTAL }})
+    name: API tests (shard ${{ matrix.shard }}/${{ matrix.shard_total }})
     needs: validate
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2]
+        include:
+          - { shard: 0, shard_total: 3 }
+          - { shard: 1, shard_total: 3 }
+          - { shard: 2, shard_total: 3 }
     steps:
       - uses: actions/checkout@v4
 
@@ -52,19 +55,19 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run API tests (shard ${{ matrix.shard }}/${{ env.API_SHARD_TOTAL }})
+      - name: Run API tests (shard ${{ matrix.shard }}/${{ matrix.shard_total }})
         id: api-test
         run: |
           ./gradlew test -Pgroups=api \
             -PshardIndex=${{ matrix.shard }} \
-            -PshardTotal=${{ env.API_SHARD_TOTAL }} \
+            -PshardTotal=${{ matrix.shard_total }} \
             --no-daemon
 
       - name: API test pass rate
         if: always()
         run: |
           bash .github/scripts/summarize-test-results.sh \
-            "API tests (shard ${{ matrix.shard }}/${{ env.API_SHARD_TOTAL }})"
+            "API tests (shard ${{ matrix.shard }}/${{ matrix.shard_total }})"
 
       - name: Upload Allure results
         if: always()
@@ -82,13 +85,15 @@ jobs:
           if-no-files-found: ignore
 
   ui-tests:
-    name: UI tests (shard ${{ matrix.shard }}/${{ env.UI_SHARD_TOTAL }})
+    name: UI tests (shard ${{ matrix.shard }}/${{ matrix.shard_total }})
     needs: validate
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1]
+        include:
+          - { shard: 0, shard_total: 2 }
+          - { shard: 1, shard_total: 2 }
     steps:
       - uses: actions/checkout@v4
 
@@ -104,19 +109,19 @@ jobs:
       - name: Install Playwright Chromium
         run: ./gradlew installPlaywright --no-daemon
 
-      - name: Run UI tests (shard ${{ matrix.shard }}/${{ env.UI_SHARD_TOTAL }})
+      - name: Run UI tests (shard ${{ matrix.shard }}/${{ matrix.shard_total }})
         id: ui-test
         run: |
           ./gradlew test -Pgroups=ui \
             -PshardIndex=${{ matrix.shard }} \
-            -PshardTotal=${{ env.UI_SHARD_TOTAL }} \
+            -PshardTotal=${{ matrix.shard_total }} \
             --no-daemon
 
       - name: UI test pass rate
         if: always()
         run: |
           bash .github/scripts/summarize-test-results.sh \
-            "UI tests (shard ${{ matrix.shard }}/${{ env.UI_SHARD_TOTAL }})"
+            "UI tests (shard ${{ matrix.shard }}/${{ matrix.shard_total }})"
 
       - name: Upload Allure results
         if: always()
