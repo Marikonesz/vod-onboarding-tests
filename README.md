@@ -54,6 +54,16 @@ Compile only (no browser):
 ./gradlew test
 ./gradlew test -Pgroups=api
 ./gradlew test -Pgroups=ui
+# Sequential (debug): ./gradlew test -PsingleThread
+# CI sharding (one shard per Gradle invocation):
+./gradlew test -Pgroups=api -PshardIndex=0 -PshardTotal=3
+```
+
+**Parallel via JUnit 5:** `./gradlew test` runs test **methods in parallel threads** in one JVM (`@Execution(CONCURRENT)` on `BaseTest`, `junit-platform.properties`). Thread pool size follows CPU count (Gradle sets `fixed.parallelism`). Mock state is thread-local (`ScenarioState`).
+
+**IDE:** enable parallel in the JUnit run template, or use **Run tests with Gradle** so `junit-platform.properties` applies.
+
+```bash
 ./gradlew test --tests "com.vod.onboarding.api.VodPreferencesApiTest"
 ./gradlew test --tests "com.vod.onboarding.ui.OnboardingUiTest"
 ```
@@ -67,7 +77,7 @@ Compile only (no browser):
 
 Open `build/reports/allure-report/allureReport/index.html`. Tests link to TMS via `@TmsLink("VP-001")` etc.
 
-**CI:** job **Allure report (GitHub Pages)** builds a combined report and uploads artifact **allure-report-combined** (always). For a live URL, open **Settings → Pages → Build and deployment → Source: GitHub Actions** in your repo (`https://github.com/<owner>/<repo>/settings/pages`), then re-run the workflow; the job Summary will show **View Allure report**.
+**CI:** tests run in **parallel matrix shards** (API: 3 jobs, UI: 2 jobs) after catalog validation; see `env.API_SHARD_TOTAL` / `env.UI_SHARD_TOTAL` in `.github/workflows/tests.yml`. Job **Allure report (GitHub Pages)** builds a combined report and uploads artifact **allure-report-combined** (always). For a live URL, open **Settings → Pages → Build and deployment → Source: GitHub Actions** in your repo (`https://github.com/<owner>/<repo>/settings/pages`), then re-run the workflow; the job Summary will show **View Allure report**.
 
 ## TestRail export
 

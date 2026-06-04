@@ -4,6 +4,9 @@ import com.vod.onboarding.api.mock.EmbeddedMockServer;
 import com.vod.onboarding.common.domain.ScenarioState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 /**
  * Common test base for API and UI tests.
@@ -14,7 +17,11 @@ import org.junit.jupiter.api.BeforeEach;
  *
  * <p>Extended by {@link com.vod.onboarding.api.ApiTestBase} and
  * {@link com.vod.onboarding.ui.UiTestBase}.
+ *
+ * <p>Tests run concurrently via JUnit 5 parallel execution (see {@code junit-platform.properties}).
  */
+@Execution(ExecutionMode.CONCURRENT)
+@ExtendWith(CiShardExtension.class)
 public abstract class BaseTest {
   /** Non-null only when {@link #usingMock} is {@code true}. */
   protected EmbeddedMockServer mockServer;

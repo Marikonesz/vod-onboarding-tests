@@ -18,7 +18,7 @@ from pathlib import Path
 
 results_dir = Path(sys.argv[1])
 total = failures = errors = skipped = 0
-files = list(results_dir.glob("TEST-*.xml"))
+files = list(results_dir.rglob("TEST-*.xml"))
 if not files:
     print("0 0 0 0 0 0.0")
     sys.exit(0)

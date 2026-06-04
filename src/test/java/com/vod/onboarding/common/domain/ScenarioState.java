@@ -1,59 +1,92 @@
 package com.vod.onboarding.common.domain;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * In-memory store for mocked scenario state (preferences per profile; extensible for campaigns).
+ *
+ * <p>Thread-local so API tests can run in parallel ({@code maxParallelForks} and/or JUnit
+ * concurrent execution) without cross-test interference.
  */
 public final class ScenarioState {
-  private static final Map<String, VodPreferencesBody> PREFERENCES = new HashMap<>();
-  private static final java.util.Set<String> SURVEY_COMPLETED = new java.util.HashSet<>();
+  private static final ThreadLocal<State> LOCAL = ThreadLocal.withInitial(State::new);
 
   private ScenarioState() {}
 
-  /** Clears all in-memory state (call once per test). */
+  /** Clears state for the current thread (call once per test). */
   public static void reset() {
-    PREFERENCES.clear();
-    SURVEY_COMPLETED.clear();
+    LOCAL.get().clear();
   }
 
   /** Persists preferences for a profile in the mock store. */
   public static void savePreferences(String profileId, VodPreferencesBody body) {
-    PREFERENCES.put(profileId, body);
-    markSurveyCompleted(profileId);
+    LOCAL.get().savePreferences(profileId, body);
   }
 
   /** Whether the one-time onboarding survey was already completed (save or skip). */
   public static boolean isSurveyCompleted(String profileId) {
-    return SURVEY_COMPLETED.contains(profileId);
+    return LOCAL.get().isSurveyCompleted(profileId);
   }
 
   /** Marks survey completed without saving preferences (tests only). */
   public static void markSurveyCompleted(String profileId) {
-    SURVEY_COMPLETED.add(profileId);
+    LOCAL.get().markSurveyCompleted(profileId);
   }
 
   /** Returns saved preferences, or {@code null} if none were stored. */
   public static VodPreferencesBody getPreferences(String profileId) {
-    return PREFERENCES.get(profileId);
+    return LOCAL.get().getPreferences(profileId);
   }
 
   /**
    * Whether recommendations should use the personalized fixture (at least 3 genres and not skipped).
    */
   public static boolean hasPersonalizedRecommendations(String profileId) {
-    VodPreferencesBody prefs = PREFERENCES.get(profileId);
-    if (prefs == null) {
-      return false;
-    }
-    if (prefs.skipped()) {
-      return false;
-    }
-    return prefs.genreIds() != null && prefs.genreIds().size() >= 3;
+    return LOCAL.get().hasPersonalizedRecommendations(profileId);
   }
 
   /** Parsed POST body for vod-preferences. */
   public record VodPreferencesBody(List<String> genreIds, List<String> movieIds, boolean skipped) {}
+
+  private static final class State {
+    private final Map<String, VodPreferencesBody> preferences = new HashMap<>();
+    private final Set<String> surveyCompleted = new HashSet<>();
+
+    void clear() {
+      preferences.clear();
+      surveyCompleted.clear();
+    }
+
+    void savePreferences(String profileId, VodPreferencesBody body) {
+      preferences.put(profileId, body);
+      markSurveyCompleted(profileId);
+    }
+
+    boolean isSurveyCompleted(String profileId) {
+      return surveyCompleted.contains(profileId);
+    }
+
+    void markSurveyCompleted(String profileId) {
+      surveyCompleted.add(profileId);
+    }
+
+    VodPreferencesBody getPreferences(String profileId) {
+      return preferences.get(profileId);
+    }
+
+    boolean hasPersonalizedRecommendations(String profileId) {
+      VodPreferencesBody prefs = preferences.get(profileId);
+      if (prefs == null) {
+        return false;
+      }
+      if (prefs.skipped()) {
+        return false;
+      }
+      return prefs.genreIds() != null && prefs.genreIds().size() >= 3;
+    }
+  }
 }

@@ -66,6 +66,22 @@ tasks.test {
             includeTags(project.property("groups") as String)
         }
     }
+
+    // One JVM; parallelism is JUnit 5 concurrent methods (not Gradle forks).
+    maxParallelForks = 1
+
+    val junitParallelism =
+        (Runtime.getRuntime().availableProcessors()).coerceIn(2, 8).toString()
+    if (project.hasProperty("singleThread")) {
+        systemProperty("junit.jupiter.execution.parallel.enabled", "false")
+    } else {
+        systemProperty("junit.jupiter.execution.parallel.enabled", "true")
+        systemProperty("junit.jupiter.execution.parallel.mode.default", "concurrent")
+        systemProperty("junit.jupiter.execution.parallel.mode.classes.default", "concurrent")
+        systemProperty("junit.jupiter.execution.parallel.config.strategy", "fixed")
+        systemProperty("junit.jupiter.execution.parallel.config.fixed.parallelism", junitParallelism)
+    }
+
     systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
     // Optional Gradle -P flags → JVM system properties (see TestEnvironment)
     mapOf(
@@ -75,6 +91,8 @@ tasks.test {
         "vodHeadless" to "vod.headless",
         "vodTraceOnFailure" to "vod.trace.on.failure",
         "vodTraceDir" to "vod.trace.dir",
+        "shardIndex" to "ci.shard.index",
+        "shardTotal" to "ci.shard.total",
     ).forEach { (gradleProperty, systemProperty) ->
         if (project.hasProperty(gradleProperty)) {
             systemProperty(systemProperty, project.property(gradleProperty) as String)
