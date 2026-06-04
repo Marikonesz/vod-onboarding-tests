@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   api-tests:
     runs-on: ubuntu-latest
@@ -53,7 +58,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: allure-report-api
-          path: build/reports/allure-report
+          path: build/reports/allure-report/allureReport
+
+      - name: Allure report links (API)
+        if: always()
+        run: bash .github/scripts/add-allure-report-link.sh "API tests" "allure-report-api" "allure-results-api"
 
       - name: Upload JUnit results
         if: always()
@@ -119,7 +128,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: allure-report-ui
-          path: build/reports/allure-report
+          path: build/reports/allure-report/allureReport
+
+      - name: Allure report links (UI)
+        if: always()
+        run: bash .github/scripts/add-allure-report-link.sh "UI tests" "allure-report-ui" "allure-results-ui"
 
       - name: Upload JUnit results
         if: always()
@@ -129,10 +142,79 @@ jobs:
           path: build/test-results/test
           if-no-files-found: ignore
 
+  publish-allure:
+    name: Allure report (GitHub Pages)
+    runs-on: ubuntu-latest
+    needs: [api-tests, ui-tests]
+    if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    concurrency:
+      group: pages-allure-${{ github.ref }}
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Download API Allure results
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-results-api
+          path: incoming-allure/api
+        continue-on-error: true
+
+      - name: Download UI Allure results
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-results-ui
+          path: incoming-allure/ui
+        continue-on-error: true
+
+      - name: Merge results and generate report
+        run: |
+          mkdir -p build/allure-results
+          shopt -s nullglob
+          cp incoming-allure/api/* build/allure-results/ 2>/dev/null || true
+          cp incoming-allure/ui/* build/allure-results/ 2>/dev/null || true
+          if [[ -z "$(ls -A build/allure-results 2>/dev/null)" ]]; then
+            echo "::warning::No Allure results to publish; skipping report generation."
+            echo "skip_publish=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          ./gradlew allureReport --no-daemon
+
+      - name: Upload Pages artifact
+        if: env.skip_publish != 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/reports/allure-report/allureReport
+
+      - name: Deploy Allure to GitHub Pages
+        if: env.skip_publish != 'true'
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Allure report link (published)
+        if: always() && env.skip_publish != 'true' && steps.deploy.outputs.page_url != ''
+        env:
+          ALLURE_PAGE_URL: ${{ steps.deploy.outputs.page_url }}
+        run: bash .github/scripts/add-allure-report-link.sh "Combined (API + UI)" "allure-pages" "allure-results-api + allure-results-ui"
+
   test-summary:
     name: Pass rate (all tests)
     runs-on: ubuntu-latest
-    needs: [api-tests, ui-tests]
+    needs: [api-tests, ui-tests, publish-allure]
     if: always()
     steps:
       - name: Combine pass rate in job summary
@@ -147,6 +229,7 @@ jobs:
           UI_FAILED: ${{ needs.ui-tests.outputs.failed }}
           UI_SKIPPED: ${{ needs.ui-tests.outputs.skipped }}
           UI_RATE: ${{ needs.ui-tests.outputs.pass_rate }}
+          ALLURE_URL: ${{ needs.publish-allure.outputs.page_url }}
         run: |
           sum() { echo "$(( ${1:-0} + ${2:-0} ))"; }
           T=$(sum "$API_TOTAL" "$UI_TOTAL")
@@ -167,4 +250,14 @@ jobs:
             echo "| API | ${API_RATE:-n/a}% | ${API_PASSED:-0} | ${API_FAILED:-0} | ${API_SKIPPED:-0} | ${API_TOTAL:-0} |"
             echo "| UI | ${UI_RATE:-n/a}% | ${UI_PASSED:-0} | ${UI_FAILED:-0} | ${UI_SKIPPED:-0} | ${UI_TOTAL:-0} |"
             echo "| **All** | **${RATE}%** | **${P}** | **${F}** | **${S}** | **${T}** |"
+            echo ""
+            echo "## Allure report"
+            echo ""
+            if [[ -n "${ALLURE_URL}" ]]; then
+              echo "### [View Allure report](${ALLURE_URL})"
+            else
+              echo "Open this workflow run → **Artifacts** → \`allure-report-api\` / \`allure-report-ui\`"
+              echo ""
+              echo "_GitHub Pages publish was skipped (fork PR or no results). Enable Pages in repo settings for live reports on \`main\`._"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

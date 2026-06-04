@@ -67,6 +67,8 @@ Compile only (no browser):
 
 Open `build/reports/allure-report/allureReport/index.html`. Tests link to TMS via `@TmsLink("VP-001")` etc.
 
+**CI:** the workflow publishes a combined API+UI report to GitHub Pages (job **Allure report (GitHub Pages)**). Enable **Settings → Pages → Source: GitHub Actions**, then open the deployment URL from the job run Summary or the **publish-allure** job environment link.
+
 ## TestRail export
 
 Canonical catalog: `src/test/resources/test-cases/vod-preferences.json`
