@@ -5,92 +5,53 @@ on:
   pull_request:
 
 env:
+  JAVA_VERSION: '17'
   API_SHARD_TOTAL: 2
-  UI_SHARD_TOTAL: 1
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read
 
 jobs:
   validate:
     name: Validate catalog
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Validate catalog
-        run: ./gradlew validateCatalog --no-daemon
+      - uses: ./.github/actions/setup-java-gradle
+      - run: ./gradlew validateCatalog --no-daemon
 
   api-tests:
-    name: API shard ${{ matrix.shard }}/${{ matrix.shard_total }}
+    name: API shard ${{ matrix.shard }}/${{ env.API_SHARD_TOTAL }}
     needs: validate
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { shard: 0, shard_total: 2 }
-          - { shard: 1, shard_total: 2 }
+        shard: [0, 1]
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: ./.github/actions/setup-java-gradle
 
       - name: Run API tests
         run: |
           ./gradlew test -Pgroups=api \
             -PshardIndex=${{ matrix.shard }} \
-            -PshardTotal=${{ matrix.shard_total }} \
+            -PshardTotal=${{ env.API_SHARD_TOTAL }} \
             --no-daemon
 
-      - name: Upload Allure results
+      - uses: ./.github/actions/upload-test-artifacts
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: allure-results-api-shard-${{ matrix.shard }}
-          path: build/allure-results
-
-      - name: Upload JUnit results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit-results-api-shard-${{ matrix.shard }}
-          path: build/test-results/test
-          if-no-files-found: ignore
+          suite: api
+          shard: ${{ matrix.shard }}
 
   ui-tests:
     name: UI tests
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: ./.github/actions/setup-java-gradle
 
       - name: Install Playwright Chromium
         run: ./gradlew installPlaywright --no-daemon
@@ -98,12 +59,10 @@ jobs:
       - name: Run UI tests
         run: ./gradlew test -Pgroups=ui --no-daemon
 
-      - name: Upload Allure results
+      - uses: ./.github/actions/upload-test-artifacts
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: allure-results-ui-shard-0
-          path: build/allure-results
+          suite: ui
 
       - name: Upload Playwright traces on failure
         if: failure()
@@ -113,19 +72,13 @@ jobs:
           path: build/playwright-traces
           if-no-files-found: ignore
 
-      - name: Upload JUnit results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: junit-results-ui-shard-0
-          path: build/test-results/test
-          if-no-files-found: ignore
-
   report:
     name: Test report
     runs-on: ubuntu-latest
     needs: [api-tests, ui-tests]
     if: always()
+    env:
+      ALLURE_PAGES_BASE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -136,84 +89,35 @@ jobs:
           path: merged-junit
         continue-on-error: true
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: ./.github/actions/setup-java-gradle
         with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+          checkout: 'false'
 
       - name: Download Allure results
         uses: actions/download-artifact@v4
         with:
           pattern: allure-results-*
           path: incoming-allure
-          merge-multiple: true
         continue-on-error: true
 
-      - name: Restore Allure history
-        uses: actions/cache@v4
-        with:
-          path: .allure-history
-          key: allure-history-${{ github.ref_name }}
-          restore-keys: |
-            allure-history-${{ github.ref_name }}
-            allure-history-
+      - uses: ./.github/actions/restore-allure-history
 
       - name: Build combined Allure report
-        id: allure
-        env:
-          ALLURE_PAGES_BASE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
-        run: |
-          mkdir -p build/allure-results
-          find incoming-allure -type f \( -name '*-result.json' -o -name '*-container.json' \) \
-            -exec cp -t build/allure-results {} + 2>/dev/null || true
-          if [[ -z "$(ls -A build/allure-results 2>/dev/null)" ]]; then
-            echo "skip_publish=true" >> "$GITHUB_ENV"
-            exit 0
-          fi
-          bash .github/scripts/prepare-allure-history.sh build/allure-results .allure-history "$ALLURE_PAGES_BASE"
-          cat > build/allure-results/executor.json <<EOF
-          {
-            "name": "GitHub Actions",
-            "type": "github",
-            "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-            "buildName": "#${GITHUB_RUN_NUMBER}",
-            "buildUrl": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
-            "reportName": "VOD Onboarding Tests"
-          }
-          EOF
-          ./gradlew allureReport --no-daemon
-          bash .github/scripts/save-allure-history.sh build/reports/allure-report/allureReport .allure-history
+        run: bash .github/scripts/build-ci-allure-report.sh
 
-      - name: Upload Allure report artifact
+      - name: Upload Allure history
         if: env.skip_publish != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: allure-report-combined
-          path: build/reports/allure-report/allureReport
+          name: allure-history
+          path: .allure-history
+          retention-days: 90
+          if-no-files-found: ignore
 
-      - name: Configure GitHub Pages
+      - uses: ./.github/actions/publish-allure-pages
         if: env.skip_publish != 'true'
         id: pages
-        continue-on-error: true
-        uses: actions/configure-pages@v5
 
-      - name: Upload Pages artifact
-        if: env.skip_publish != 'true' && steps.pages.outcome == 'success'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: build/reports/allure-report/allureReport
-
-      - name: Deploy to GitHub Pages
-        if: env.skip_publish != 'true' && steps.pages.outcome == 'success'
-        id: deploy
-        continue-on-error: true
-        uses: actions/deploy-pages@v4
-
-      - name: Workflow summary (pass rate + Allure link)
+      - name: Workflow summary
         if: always()
-        run: |
-          bash .github/scripts/write-ci-summary.sh merged-junit "${{ steps.deploy.outputs.page_url }}"
+        run: bash .github/scripts/write-ci-summary.sh merged-junit "${{ steps.pages.outputs.page_url }}"

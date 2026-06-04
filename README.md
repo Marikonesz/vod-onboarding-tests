@@ -81,14 +81,15 @@ Compile only (no browser):
 
 Open `build/reports/allure-report/allureReport/index.html`. Tests link to TMS via `@TmsLink("VP-001")` etc.
 
-**Trends / history (local):** before regenerating, copy the previous report’s `history/` into results, then run `allureReport` again:
+**Trends / history (local):**
 
 ```bash
+./gradlew test
 cp -R build/reports/allure-report/allureReport/history build/allure-results/ 2>/dev/null || true
-./gradlew test allureReport
+./gradlew allureReport
 ```
 
-**CI:** API **2** parallel shards + UI **1** job → **Test report** merges results, restores **Allure history** (Actions cache + optional GitHub Pages), builds the report with **Overview trend charts**, deploys to Pages. Enable **Settings → Pages → Source: GitHub Actions** for a hosted `index.html` link in the job summary.
+**CI:** **Test report** restores `allure-history` (cache + previous workflow artifact + Pages), merges shard results, runs `finalize-allure-report.sh` (double `allureReport` so **TREND** widgets populate), uploads `allure-history` for the next run. **Second workflow run** on the same branch should show trend charts; the first run may still be sparse.
 
 ## TestRail export
 
