@@ -33,7 +33,7 @@ jobs:
         run: ./gradlew validateCatalog --no-daemon
 
   api-tests:
-    name: API tests (shard ${{ matrix.shard + 1 }}/${{ env.API_SHARD_TOTAL }})
+    name: API tests (shard ${{ matrix.shard }}/${{ env.API_SHARD_TOTAL }})
     needs: validate
     runs-on: ubuntu-latest
     strategy:
@@ -64,7 +64,7 @@ jobs:
         if: always()
         run: |
           bash .github/scripts/summarize-test-results.sh \
-            "API tests (shard ${{ matrix.shard + 1 }}/${{ env.API_SHARD_TOTAL }})"
+            "API tests (shard ${{ matrix.shard }}/${{ env.API_SHARD_TOTAL }})"
 
       - name: Upload Allure results
         if: always()
@@ -82,7 +82,7 @@ jobs:
           if-no-files-found: ignore
 
   ui-tests:
-    name: UI tests (shard ${{ matrix.shard + 1 }}/${{ env.UI_SHARD_TOTAL }})
+    name: UI tests (shard ${{ matrix.shard }}/${{ env.UI_SHARD_TOTAL }})
     needs: validate
     runs-on: ubuntu-latest
     strategy:
@@ -116,7 +116,7 @@ jobs:
         if: always()
         run: |
           bash .github/scripts/summarize-test-results.sh \
-            "UI tests (shard ${{ matrix.shard + 1 }}/${{ env.UI_SHARD_TOTAL }})"
+            "UI tests (shard ${{ matrix.shard }}/${{ env.UI_SHARD_TOTAL }})"
 
       - name: Upload Allure results
         if: always()
