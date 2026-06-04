@@ -116,8 +116,7 @@ jobs:
           name: playwright-traces
           path: build/playwright-traces
           if-no-files-found: ignore
-
-  report:
+report:
     name: Test report
     runs-on: ubuntu-latest
     needs: [api-tests, ui-tests]
@@ -125,6 +124,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 1. Download Allure results from all shards
       - name: Download Allure results
         uses: actions/download-artifact@v4
         with:
@@ -133,6 +133,27 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
+      # 2. Download history from the PREVIOUS SUCCESSFUL workflow run
+      - name: Download previous Allure history artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: tests.yml # Put your exact workflow file name here if it differs
+          name: github-pages
+          path: previous-report
+          check_artifacts: true
+          search_artifacts: true
+          workflow_conclusion: success
+        continue-on-error: true
+
+      # 3. Move old history to the new results folder
+      - name: Prepare Allure history
+        run: |
+          mkdir -p allure-results/history
+          if [ -d "previous-report/history" ]; then
+            cp -r previous-report/history/* allure-results/history/
+          fi
+
+      # 4. Install official Allure CLI
       - name: Install Allure CLI
         run: |
           wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
@@ -140,29 +161,27 @@ jobs:
           sudo mv allure-2.27.0 /opt/allure
           sudo ln -s /opt/allure/bin/allure /usr/bin/allure
 
-      - name: Download previous Allure history
-        run: |
-          mkdir -p allure-results/history
-          curl -sSL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/history/history.json" > allure-results/history/history.json || true
-          curl -sSL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/history/duration-trend.json" > allure-results/history/duration-trend.json || true
-          curl -sSL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/history/categories-trend.json" > allure-results/history/categories-trend.json || true
-          curl -sSL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/history/retry-trend.json" > allure-results/history/retry-trend.json || true
-
+      # 5. Generate the HTML report
       - name: Generate Allure Report
-        run: allure generate allure-results --clean -o allure-report
+        run: |
+          allure generate allure-results --clean -o allure-report
 
+      # 6. Upload the generated report folder as a Pages artifact
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: allure-report
 
+      # 7. Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
 
+      # 8. Add link to GitHub Summary
       - name: Add link to Summary
         if: always()
         run: |
-          echo "### Tests completed" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Tests Completed!" >> $GITHUB_STEP_SUMMARY
+          echo "Allure Report has been successfully generated and published." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "[Open Allure report](${{ steps.deployment.outputs.page_url }})" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 **[Open Allure Report](${{ steps.deployment.outputs.page_url }})**" >> $GITHUB_STEP_SUMMARY
