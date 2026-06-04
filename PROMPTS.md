@@ -42,6 +42,7 @@ This file stores your prompts to the AI in chronological order.
 | 34 | `lokaly i still face 1 thread` / `you misunderstood - tests should be run in parallel localy as well` |
 | 35 | `i meen paralell via junit!!!` |
 | 36 | Fix invalid workflow: `matrix.shard + 1` and `env.*` in job `name` |
+| 37 | `try to fix` (CI: aggregate job missing script; Pages configure 404) |
 
 ---
 
@@ -276,6 +277,8 @@ Most of `vod-preferences.json`, mock route handlers, and JUnit/Playwright tests 
 | Parallel execution (wrong tool) | Treated “parallel locally” as **Gradle** `maxParallelForks` / multi-JVM forks and briefly planned extra Gradle shard tasks; user meant **JUnit 5** concurrent test methods | `./gradlew test` still looked like one thread; user had to repeat “parallel via junit” | **One JVM** (`maxParallelForks = 1`); enable JUnit parallel: `@Execution(CONCURRENT)` on `BaseTest`, `junit-platform.properties`, Gradle `systemProperty` for `fixed.parallelism`; `ScenarioState` thread-local. **CI** parallel = matrix jobs + `-PshardIndex`/`-PshardTotal`, not Gradle forks |
 | GitHub Actions workflow | Used `matrix.shard + 1` in job `name` and step titles | Workflow invalid: `Unexpected symbol: '+'` in expression | Job/step labels use 0-based `${{ matrix.shard }}` only; no arithmetic in `jobs.<id>.name` |
 | GitHub Actions workflow | Used `${{ env.API_SHARD_TOTAL }}` in job `name` | Workflow invalid: `Unrecognized named-value: 'env'` in job name | `env` is not allowed in `jobs.<id>.name`; put `shard_total` in matrix `include` and use `${{ matrix.shard_total }}`; keep workflow-level `env` for steps only (e.g. test-summary) |
+| CI aggregate job | `aggregate-results` ran scripts without `actions/checkout` | `bash: .github/scripts/summarize-test-results.sh: No such file or directory` (exit 127) | Add `checkout@v4` before download-artifact / script steps in every job that uses repo scripts |
+| GitHub Pages | `configure-pages` failed hard when Pages not enabled in repo | Job failed on 404; deploy steps skipped | `continue-on-error` on `configure-pages`; gate upload/deploy on `steps.pages.outcome == 'success'`; artifact `allure-report-combined` still uploaded |
 
 ## Note about concern-based refactor (follow-up)
 

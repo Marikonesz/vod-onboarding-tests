@@ -168,6 +168,8 @@ jobs:
       skipped: ${{ steps.all-sum.outputs.skipped }}
       pass_rate: ${{ steps.all-sum.outputs.pass_rate }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download API JUnit results (all shards)
         uses: actions/download-artifact@v4
         with:
@@ -261,16 +263,18 @@ jobs:
 
       - name: Configure GitHub Pages
         if: env.skip_publish != 'true'
+        id: pages
+        continue-on-error: true
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
-        if: env.skip_publish != 'true'
+        if: env.skip_publish != 'true' && steps.pages.outcome == 'success'
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/reports/allure-report/allureReport
 
       - name: Deploy Allure to GitHub Pages
-        if: env.skip_publish != 'true'
+        if: env.skip_publish != 'true' && steps.pages.outcome == 'success'
         id: deploy
         continue-on-error: true
         uses: actions/deploy-pages@v4
@@ -281,7 +285,7 @@ jobs:
           ALLURE_PAGE_URL: ${{ steps.deploy.outputs.page_url }}
           PAGES_SETTINGS_URL: ${{ format('{0}/{1}/settings/pages', github.server_url, github.repository) }}
         run: |
-          if [[ "${{ steps.deploy.outcome }}" == "failure" ]]; then
+          if [[ "${{ steps.pages.outcome }}" == "failure" || "${{ steps.deploy.outcome }}" == "failure" || -z "${ALLURE_PAGE_URL}" ]]; then
             echo "::warning title=GitHub Pages not enabled::Enable Pages → Build type: GitHub Actions at ${PAGES_SETTINGS_URL}"
             {
               echo "## Allure report (combined API + UI)"
