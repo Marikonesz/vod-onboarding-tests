@@ -34,6 +34,14 @@ This file stores your prompts to the AI in chronological order.
 | 26 | `@ApiTestBase @UiTestBase where is common basetest? if you remove it - add note to mistakes in prompts` |
 | 27 | `basetest cannot be called MockServerTestBase - we dont test mockserver we crete a prototype of testing framework with possibility a quick switch to real back and frontend. add this possibilty and add browser fatory instead of srong chromium use(chromium have to be default)` |
 | 28 | `do it` (close assignment gaps: one-time survey API, min 5 movies validation, genre-filtered movies, VP-UI-005/006, README 80% note) |
+| 29 | `update gitignore if needed` |
+| 30 | `resolve conflicts without commit` |
+| 31 | `update github action to see passrate in job run` |
+| 32 | `add step to allure reporting job run should contain a link to see allure report` / `try to fix` (Pages 404) |
+| 33 | `tests should be run in parallel also use sharding on ci` |
+| 34 | `lokaly i still face 1 thread` / `you misunderstood - tests should be run in parallel localy as well` |
+| 35 | `i meen paralell via junit!!!` |
+| 36 | Fix invalid workflow: `matrix.shard + 1` and `env.*` in job `name` |
 
 ---
 
@@ -234,6 +242,10 @@ do it
 
 (Context: implement assignment gap closure — one-time survey endpoint, API min 5 movies, genre-filtered survey-movies, UI tests VP-UI-005/006, contract/catalog updates.)
 
+### Prompt 29–36 (CI, parallel, workflow)
+
+See index rows 29–36. Key user correction (Prompt 35): **parallel via JUnit 5**, not Gradle `maxParallelForks` or extra Gradle shard tasks for local runs.
+
 ## AI-generated share (~80%)
 
 Most of `vod-preferences.json`, mock route handlers, and JUnit/Playwright tests were LLM-drafted from the onboarding brief; stabilizing edits are logged in the mistakes table below and in git history. Human gates: `./gradlew test`, `validateCatalog`, PR review.
@@ -261,6 +273,9 @@ Most of `vod-preferences.json`, mock route handlers, and JUnit/Playwright tests 
 | Test base naming | Named shared base `MockServerTestBase` | Implies tests are *about* the mock server; framework is a prototype with mock/real switch | Rename to `BaseTest`; add `TestEnvironment` (mock vs real) and `BrowserFactory` (Chromium default) |
 | Assignment gaps (2025) | API allowed POST with 3 genres and 0 movies; no one-time survey endpoint | Product requires 5 movies when not skipped; survey once per profile | Add `onboarding-survey`, `survey-movies`, `min_required=5` validation, VP-014…017 and VP-UI-005/006 |
 | Dynamic movies UI | Static `movie-1`…`movie-6` in HTML broke flow after genre filter | VP-UI-004 could not pick 5 movies for action+comedy+drama | Load movies from `survey-movies`; extend catalog with movie-7/8; UI uses `selectFirstMovies(5)` |
+| Parallel execution (wrong tool) | Treated “parallel locally” as **Gradle** `maxParallelForks` / multi-JVM forks and briefly planned extra Gradle shard tasks; user meant **JUnit 5** concurrent test methods | `./gradlew test` still looked like one thread; user had to repeat “parallel via junit” | **One JVM** (`maxParallelForks = 1`); enable JUnit parallel: `@Execution(CONCURRENT)` on `BaseTest`, `junit-platform.properties`, Gradle `systemProperty` for `fixed.parallelism`; `ScenarioState` thread-local. **CI** parallel = matrix jobs + `-PshardIndex`/`-PshardTotal`, not Gradle forks |
+| GitHub Actions workflow | Used `matrix.shard + 1` in job `name` and step titles | Workflow invalid: `Unexpected symbol: '+'` in expression | Job/step labels use 0-based `${{ matrix.shard }}` only; no arithmetic in `jobs.<id>.name` |
+| GitHub Actions workflow | Used `${{ env.API_SHARD_TOTAL }}` in job `name` | Workflow invalid: `Unrecognized named-value: 'env'` in job name | `env` is not allowed in `jobs.<id>.name`; put `shard_total` in matrix `include` and use `${{ matrix.shard_total }}`; keep workflow-level `env` for steps only (e.g. test-summary) |
 
 ## Note about concern-based refactor (follow-up)
 
