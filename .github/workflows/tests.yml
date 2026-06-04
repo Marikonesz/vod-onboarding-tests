@@ -17,7 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      #RULE 1: STRICT COMPLETION - Proceeding directly to full config generation
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -148,6 +147,12 @@ jobs:
       - name: Prepare Allure history
         run: |
           mkdir -p allure-results/history
+          # В архіві github-pages контент зазвичай лежить упакований в artifact.tar
+          if [ -f "previous-report/artifact.tar" ]; then
+            tar -xf previous-report/artifact.tar -C previous-report/
+          fi
+          
+          # Копіюємо історію, якщо знайшли її в будь-якому з можливих шляхів розпакування
           if [ -d "previous-report/history" ]; then
             cp -r previous-report/history/* allure-results/history/
           fi
