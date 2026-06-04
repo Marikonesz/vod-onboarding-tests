@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Персоналізація профілю</title>
+  <title>Profile personalization</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; }
     .genres { display: flex; flex-wrap: wrap; gap: 0.5rem; }
@@ -15,8 +15,8 @@
   </style>
 </head>
 <body>
-  <h1>Опитувальник зацікавленостей</h1>
-  <p data-testid="step-label">Крок 1: оберіть щонайменше 3 жанри</p>
+  <h1>Interest survey</h1>
+  <p data-testid="step-label">Step 1: select at least 3 genres</p>
 
   <div class="genres" data-testid="genre-list">
     <button type="button" class="genre" data-genre-id="genre-action">Action</button>
@@ -28,20 +28,13 @@
   </div>
 
   <div class="movies" data-testid="movies-step">
-    <p>Крок 2: оберіть 5 фільмів</p>
-    <div data-testid="movie-list">
-      <label><input type="checkbox" data-movie-id="movie-1" /> Film 1</label>
-      <label><input type="checkbox" data-movie-id="movie-2" /> Film 2</label>
-      <label><input type="checkbox" data-movie-id="movie-3" /> Film 3</label>
-      <label><input type="checkbox" data-movie-id="movie-4" /> Film 4</label>
-      <label><input type="checkbox" data-movie-id="movie-5" /> Film 5</label>
-      <label><input type="checkbox" data-movie-id="movie-6" /> Film 6</label>
-    </div>
+    <p>Step 2: select 5 movies</p>
+    <div data-testid="movie-list"></div>
   </div>
 
-  <div class="actions">
-    <button type="button" id="next" data-testid="btn-next" disabled>Далі</button>
-    <button type="button" id="skip" data-testid="btn-skip">Пропустити</button>
+  <div class="actions" data-testid="survey-actions">
+    <button type="button" id="next" data-testid="btn-next" disabled>Next</button>
+    <button type="button" id="skip" data-testid="btn-skip">Skip</button>
   </div>
   <div id="status" data-testid="status"></div>
 
@@ -52,12 +45,16 @@
     const selectedGenres = new Set();
     const selectedMovies = new Set();
     let step = 1;
+    let surveyActive = true;
 
     const nextBtn = document.getElementById('next');
     const skipBtn = document.getElementById('skip');
     const statusEl = document.getElementById('status');
     const moviesStep = document.querySelector('[data-testid="movies-step"]');
     const stepLabel = document.querySelector('[data-testid="step-label"]');
+    const movieListEl = document.querySelector('[data-testid="movie-list"]');
+    const surveyActions = document.querySelector('[data-testid="survey-actions"]');
+    const genreSection = document.querySelector('.genres');
 
     document.querySelectorAll('button.genre').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -69,22 +66,40 @@
           selectedGenres.add(id);
           btn.classList.add('selected');
         }
-        if (step === 1) {
+        if (step === 1 && surveyActive) {
           nextBtn.disabled = selectedGenres.size < 3;
         }
       });
     });
 
-    document.querySelectorAll('[data-movie-id]').forEach((input) => {
-      input.addEventListener('change', () => {
-        const id = input.dataset.movieId;
-        if (input.checked) selectedMovies.add(id);
-        else selectedMovies.delete(id);
-        if (step === 2) {
-          nextBtn.disabled = selectedMovies.size < 5;
-        }
+    function bindMovieInputs() {
+      document.querySelectorAll('[data-movie-id]').forEach((input) => {
+        input.addEventListener('change', () => {
+          const id = input.dataset.movieId;
+          if (input.checked) selectedMovies.add(id);
+          else selectedMovies.delete(id);
+          if (step === 2) {
+            nextBtn.disabled = selectedMovies.size < 5;
+          }
+        });
       });
-    });
+    }
+
+    async function loadSurveyMovies() {
+      const qs = [...selectedGenres].join(',');
+      const res = await fetch(API('/survey-movies') + '?genre_ids=' + encodeURIComponent(qs));
+      const data = await res.json();
+      movieListEl.innerHTML = '';
+      selectedMovies.clear();
+      (data.movies || []).forEach((m) => {
+        const label = document.createElement('label');
+        label.innerHTML =
+          '<input type="checkbox" data-movie-id="' + m.id + '" /> ' + (m.title || m.id);
+        movieListEl.appendChild(label);
+      });
+      bindMovieInputs();
+      nextBtn.disabled = true;
+    }
 
     async function savePreferences(body) {
       const res = await fetch(API('/vod-preferences'), {
@@ -102,14 +117,30 @@
       return res.json();
     }
 
+    async function initSurvey() {
+      const res = await fetch(API('/onboarding-survey'));
+      const data = await res.json();
+      if (!data.show_survey) {
+        surveyActive = false;
+        statusEl.textContent = 'Survey already completed';
+        statusEl.dataset.surveyState = 'completed';
+        genreSection.style.display = 'none';
+        moviesStep.classList.remove('visible');
+        surveyActions.style.display = 'none';
+        return;
+      }
+      statusEl.dataset.surveyState = 'active';
+    }
+
     nextBtn.addEventListener('click', async () => {
+      if (!surveyActive) return;
       try {
         if (step === 1) {
           step = 2;
           moviesStep.classList.add('visible');
-          stepLabel.textContent = 'Крок 2: оберіть 5 фільмів';
-          nextBtn.disabled = true;
-          nextBtn.textContent = 'Завершити';
+          stepLabel.textContent = 'Step 2: select 5 movies';
+          nextBtn.textContent = 'Finish';
+          await loadSurveyMovies();
           return;
         }
         await savePreferences({
@@ -118,23 +149,28 @@
           skipped: false,
         });
         const rec = await loadRecommendations();
-        statusEl.textContent = `Збережено. Рекомендації: ${rec.source}`;
+        statusEl.textContent = `Saved. Recommendations: ${rec.source}`;
         statusEl.dataset.recSource = rec.source;
+        surveyActive = false;
       } catch (e) {
-        statusEl.textContent = 'Помилка: ' + e.message;
+        statusEl.textContent = 'Error: ' + e.message;
       }
     });
 
     skipBtn.addEventListener('click', async () => {
+      if (!surveyActive) return;
       try {
         await savePreferences({ genre_ids: [], movie_ids: [], skipped: true });
         const rec = await loadRecommendations();
-        statusEl.textContent = `Пропущено. Рекомендації: ${rec.source}`;
+        statusEl.textContent = `Skipped. Recommendations: ${rec.source}`;
         statusEl.dataset.recSource = rec.source;
+        surveyActive = false;
       } catch (e) {
-        statusEl.textContent = 'Помилка: ' + e.message;
+        statusEl.textContent = 'Error: ' + e.message;
       }
     });
+
+    initSurvey();
   </script>
 </body>
 </html>

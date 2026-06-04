@@ -1,0 +1,13 @@
+---
+description: Use MCP/CLI for Jira Confluence TestRail; avoid Java REST clients
+globs: **/*
+alwaysApply: true
+---
+
+# Integrations: MCP first
+
+- Confluence/Jira/TestRail: use MCP or CLI (`gh`, `./gradlew exportTestRail`), not new Java clients in `common/integrations/` unless user explicitly requests fallback.
+- Never commit API tokens or passwords.
+- Jira: draft only in `build/jira-draft.md`; create issue only after human approval.
+
+See `docs/integrations/` and `docs/ai-workflow.md`.

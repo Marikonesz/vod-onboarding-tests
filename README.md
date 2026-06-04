@@ -1,6 +1,6 @@
 # VOD profile onboarding — AI-first test prototype (Java)
 
-Standalone **Java** project for API-first and minimal UI regression of the “Персоналізація профілю” onboarding flow. API and onboarding page are served by an embedded in-process localhost mock server (no WireMock, no TypeScript test suite).
+Standalone **Java** project for API-first and minimal UI regression of the profile personalization onboarding flow. API and onboarding page are served by an embedded in-process localhost mock server (no WireMock, no TypeScript test suite).
 
 ## Stack
 
@@ -77,6 +77,15 @@ Canonical catalog: `src/test/resources/test-cases/vod-preferences.json`
 
 CSV output: `build/testrail/vod-preferences.csv`
 
+Agent import: see [docs/integrations/testrail.md](docs/integrations/testrail.md) and skill `catalog-to-testrail`.
+
+## Validate catalog
+
+```bash
+./gradlew validateCatalog
+./gradlew syncCatalogDocs
+```
+
 ## Test target: mock (default) vs real
 
 `BaseTest` (via `ApiTestBase` / `UiTestBase`) resolves the origin from `TestEnvironment`:
@@ -98,7 +107,11 @@ CSV output: `build/testrail/vod-preferences.csv`
 
 Mock handlers implement `POST/GET /v1/profile/*/vod-preferences`, `GET .../recommendations`, and `GET /onboarding`. Real environments should expose the same paths (or adapt page objects separately).
 
-`PreferencesState` applies only in mock mode (in-memory consistency for GET after POST).
+`ScenarioState` applies only in mock mode (in-memory consistency for GET after POST).
+
+Optional auth for real target: `VOD_BEARER_TOKEN`, `VOD_API_KEY` (never commit).
+
+Tests tagged `real-smoke` are skipped unless `vod.test.target=real` and base URL is set.
 
 ## Browser selection (UI tests)
 
@@ -127,10 +140,18 @@ npx playwright show-trace build/playwright-traces/OnboardingUiTest_nextButton_di
 
 ## Docs
 
-- [PROMPTS.md](PROMPTS.md) — prompt log and AI fixes
-- [AI-STRATEGY.md](AI-STRATEGY.md) — scaling to promo/start-screen regression
+- [AI-STRATEGY.md](AI-STRATEGY.md) — framework, AI pipeline, integrations
+- [docs/ai-workflow.md](docs/ai-workflow.md) — agent operator steps
+- [docs/integrations/](docs/integrations/) — Confluence, Jira, TestRail via MCP
+- [docs/contract/onboarding-api.md](docs/contract/onboarding-api.md) — API contract stub
+- [PROMPTS.md](PROMPTS.md) — prompt log
+- [prompts/](prompts/) — templates for agents
 - [src/test/resources/test-cases/vod-preferences.json](src/test/resources/test-cases/vod-preferences.json) — test catalog
 
 ## Note on prototype UI
 
 `src/test/resources/public/onboarding.html` mirrors the survey state machine for demo purposes. Replace URL/selectors when wiring to the real app; keep `data-testid` hooks where possible.
+
+## AI-generated artifact estimate
+
+Roughly **80%+** of the regression catalog (`vod-preferences.json`), mock handlers, and test code were drafted with Cursor/LLM from the product brief, then corrected via human review (see [PROMPTS.md](PROMPTS.md) mistakes table). UI copy and repo docs are **English-only**; the original assignment brief may be Ukrainian in Confluence.

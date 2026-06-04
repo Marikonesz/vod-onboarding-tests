@@ -17,12 +17,12 @@ public final class OnboardingPage {
 
   // --- Locators ---
 
-  /** "Далі" button on genre and movie steps. */
+  /** Next button on genre and movie steps. */
   public Locator nextButton() {
     return page.getByTestId("btn-next");
   }
 
-  /** "Пропустити" button. */
+  /** Skip button. */
   public Locator skipButton() {
     return page.getByTestId("btn-skip");
   }
@@ -37,7 +37,7 @@ public final class OnboardingPage {
     return page.getByTestId("movies-step");
   }
 
-  /** Step indicator label (e.g. "Крок 1"). */
+  /** Step indicator label (e.g. "Step 1"). */
   public Locator stepLabel() {
     return page.getByTestId("step-label");
   }
@@ -109,15 +109,25 @@ public final class OnboardingPage {
     return this;
   }
 
-  /** Clicks "Далі". */
-  @Step("Click Далі")
+  /** Selects the first N movies currently listed on step 2. */
+  @Step("Select first {count} visible movies")
+  public OnboardingPage selectFirstMovies(int count) {
+    var inputs = movieList().locator("[data-movie-id]");
+    for (int i = 0; i < count; i++) {
+      inputs.nth(i).check();
+    }
+    return this;
+  }
+
+  /** Clicks Next. */
+  @Step("Click 'Next'")
   public OnboardingPage clickNext() {
     nextButton().click();
     return this;
   }
 
-  /** Clicks "Пропустити". */
-  @Step("Click Пропустити")
+  /** Clicks Skip. */
+  @Step("Click 'Skip'")
   public OnboardingPage clickSkip() {
     skipButton().click();
     return this;

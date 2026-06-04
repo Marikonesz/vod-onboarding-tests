@@ -52,6 +52,14 @@ allure {
     }
 }
 
+tasks.withType<JavaExec>().configureEach {
+    javaLauncher.set(
+        javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(17))
+        },
+    )
+}
+
 tasks.test {
     useJUnitPlatform {
         if (project.hasProperty("groups")) {
@@ -85,9 +93,25 @@ tasks.register<JavaExec>("installPlaywright") {
     args("install", "chromium")
 }
 
+tasks.register<JavaExec>("validateCatalog") {
+    group = "verification"
+    description = "Validate test case catalog JSON (English, unique ids, automated_in)"
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("com.vod.onboarding.common.catalog.CatalogValidator")
+}
+
+tasks.register<JavaExec>("syncCatalogDocs") {
+    group = "verification"
+    description = "Copy src/test/resources/test-cases/*.json to docs/test-cases/"
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("com.vod.onboarding.common.catalog.CatalogValidator")
+    args("vod-preferences.json", "--sync-docs")
+}
+
 tasks.register<JavaExec>("exportTestRail") {
     group = "verification"
     description = "Export test catalog to TestRail CSV under build/testrail/"
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass.set("com.vod.onboarding.common.catalog.TestRailExporter")
+    finalizedBy("syncCatalogDocs")
 }

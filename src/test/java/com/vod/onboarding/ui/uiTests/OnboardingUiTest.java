@@ -30,7 +30,7 @@ class OnboardingUiTest extends UiTestBase {
   @Test
   @TmsLink("VP-UI-001")
   @Severity(SeverityLevel.CRITICAL)
-  @DisplayName("VP-UI-001 Далі disabled until 3 genres selected")
+  @DisplayName("VP-UI-001 'Next' disabled until 3 genres selected")
   void nextButton_disabledUntilThreeGenres() {
     OnboardingPage onboarding = openOnboarding(newPage(), "profile-ui-001");
 
@@ -45,20 +45,20 @@ class OnboardingUiTest extends UiTestBase {
 
   @Test
   @TmsLink("VP-UI-002")
-  @DisplayName("VP-UI-002 Далі advances to movies step")
+  @DisplayName("VP-UI-002 'Next' advances to movies step")
   void nextButton_advancesToMovieStep() {
     OnboardingPage onboarding = openOnboarding(newPage(), "profile-ui-002")
         .selectThreeGenres()
         .clickNext();
 
     assertThat(onboarding.moviesStep()).isVisible();
-    assertThat(onboarding.stepLabel()).containsText("Крок 2");
+    assertThat(onboarding.stepLabel()).containsText("Step 2");
     assertThat(onboarding.nextButton()).isDisabled();
   }
 
   @Test
   @TmsLink("VP-UI-003")
-  @DisplayName("VP-UI-003 Пропустити saves skip and shows default recommendations")
+  @DisplayName("VP-UI-003 'Skip' saves skip and shows default recommendations")
   void skipButton_usesDefaultRecommendations() {
     OnboardingPage onboarding = openOnboarding(newPage(), "profile-ui-003")
         .clickSkip();
@@ -74,9 +74,40 @@ class OnboardingUiTest extends UiTestBase {
     OnboardingPage onboarding = openOnboarding(newPage(), "profile-ui-004")
         .selectThreeGenres()
         .clickNext()
-        .selectFiveMovies()
+        .selectFirstMovies(5)
         .clickNext();
 
     assertThat(onboarding.status()).containsText("personalized", ignoreCase());
+  }
+
+  @Test
+  @TmsLink("VP-UI-005")
+  @DisplayName("VP-UI-005 'Finish' disabled until 5 movies selected")
+  void finishButton_disabledUntilFiveMovies() {
+    OnboardingPage onboarding =
+        openOnboarding(newPage(), "profile-ui-005")
+            .selectThreeGenres()
+            .clickNext();
+
+    assertThat(onboarding.moviesStep()).isVisible();
+    assertThat(onboarding.nextButton()).isDisabled();
+
+    onboarding.selectFirstMovies(4);
+    assertThat(onboarding.nextButton()).isDisabled();
+
+    onboarding.selectFirstMovies(5);
+    assertThat(onboarding.nextButton()).isEnabled();
+  }
+
+  @Test
+  @TmsLink("VP-UI-006")
+  @DisplayName("VP-UI-006 survey hidden when already completed")
+  void survey_hiddenWhenAlreadyCompleted() {
+    String profileId = "profile-ui-006";
+    seedSurveySkipped(profileId);
+
+    OnboardingPage onboarding = openOnboarding(newPage(), profileId);
+    assertThat(onboarding.status()).containsText("already completed", ignoreCase());
+    assertThat(onboarding.genreList()).isHidden();
   }
 }

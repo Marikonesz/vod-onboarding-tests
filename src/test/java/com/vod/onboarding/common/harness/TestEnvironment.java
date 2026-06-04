@@ -3,7 +3,7 @@ package com.vod.onboarding.common.harness;
 /**
  * Framework runtime switches (system properties and environment variables).
  *
- * <p>Mock mode (default): embedded server + in-memory {@code PreferencesState}.
+ * <p>Mock mode (default): embedded server + in-memory {@code ScenarioState}.
  *
  * <p>Real mode: point tests at staging/production-like stack without code changes.
  *
@@ -36,6 +36,13 @@ public final class TestEnvironment {
   public static final String PROP_TRACE_ON_FAILURE = "vod.trace.on.failure";
   /** Output directory for failed-test trace ZIPs (default {@code build/playwright-traces}). */
   public static final String PROP_TRACE_DIR = "vod.trace.dir";
+  /** Bearer token for real-target API calls (optional). */
+  public static final String PROP_BEARER_TOKEN = "vod.bearer.token";
+  public static final String ENV_BEARER_TOKEN = "VOD_BEARER_TOKEN";
+  /** API key header value for real-target (optional). */
+  public static final String PROP_API_KEY = "vod.api.key";
+  public static final String ENV_API_KEY = "VOD_API_KEY";
+  public static final String API_KEY_HEADER = "X-API-Key";
 
   private TestEnvironment() {}
 
@@ -91,6 +98,26 @@ public final class TestEnvironment {
   /** Directory for trace archives produced on failure. */
   public static java.nio.file.Path traceDir() {
     return java.nio.file.Path.of(System.getProperty(PROP_TRACE_DIR, "build/playwright-traces"));
+  }
+
+  /** Bearer token from property or env (empty if unset). */
+  public static java.util.Optional<String> bearerToken() {
+    return optionalNonBlank(System.getProperty(PROP_BEARER_TOKEN), System.getenv(ENV_BEARER_TOKEN));
+  }
+
+  /** API key from property or env (empty if unset). */
+  public static java.util.Optional<String> apiKey() {
+    return optionalNonBlank(System.getProperty(PROP_API_KEY), System.getenv(ENV_API_KEY));
+  }
+
+  private static java.util.Optional<String> optionalNonBlank(String primary, String fallback) {
+    if (primary != null && !primary.isBlank()) {
+      return java.util.Optional.of(primary.trim());
+    }
+    if (fallback != null && !fallback.isBlank()) {
+      return java.util.Optional.of(fallback.trim());
+    }
+    return java.util.Optional.empty();
   }
 
   private static String stripTrailingSlash(String url) {

@@ -1,0 +1,11 @@
+---
+description: Page objects contain locators and actions only
+globs: src/test/java/**/pages/**
+alwaysApply: false
+---
+
+# Page objects
+
+- No assertions in page object classes; assert in test classes only.
+- Prefer `data-testid` locators.
+- Use fluent return `this` for chaining.

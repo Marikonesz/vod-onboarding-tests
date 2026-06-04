@@ -1,0 +1,12 @@
+{
+  "movies": [
+    { "id": "movie-1", "title": "Film 1", "genre_ids": ["genre-action"] },
+    { "id": "movie-2", "title": "Film 2", "genre_ids": ["genre-action", "genre-comedy"] },
+    { "id": "movie-3", "title": "Film 3", "genre_ids": ["genre-comedy"] },
+    { "id": "movie-4", "title": "Film 4", "genre_ids": ["genre-drama"] },
+    { "id": "movie-5", "title": "Film 5", "genre_ids": ["genre-scifi"] },
+    { "id": "movie-6", "title": "Film 6", "genre_ids": ["genre-horror"] },
+    { "id": "movie-7", "title": "Film 7", "genre_ids": ["genre-drama", "genre-action"] },
+    { "id": "movie-8", "title": "Film 8", "genre_ids": ["genre-comedy", "genre-drama"] }
+  ]
+}

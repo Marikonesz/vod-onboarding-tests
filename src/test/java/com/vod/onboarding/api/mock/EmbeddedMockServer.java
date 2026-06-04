@@ -5,9 +5,10 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
 import com.vod.onboarding.api.mock.handlers.OnboardingStaticHandler;
+import com.vod.onboarding.api.mock.handlers.OnboardingSurveyHandler;
 import com.vod.onboarding.api.mock.handlers.RecommendationsHandler;
+import com.vod.onboarding.api.mock.handlers.SurveyMoviesHandler;
 import com.vod.onboarding.api.mock.handlers.VodPreferencesHandler;
-import com.vod.onboarding.api.mock.handlers.HttpResponses;
 import com.vod.onboarding.common.fixtures.MockJsonLoader;
 
 import java.io.IOException;
@@ -19,58 +20,43 @@ import java.net.InetSocketAddress;
 public final class EmbeddedMockServer implements AutoCloseable {
   private final HttpServer server;
   private final String baseUrl;
+  private final MockRouteRegistry registry;
 
-  private final OnboardingStaticHandler onboardingHandler = new OnboardingStaticHandler();
-  private final VodPreferencesHandler vodPreferencesHandler = new VodPreferencesHandler();
-  private final RecommendationsHandler recommendationsHandler;
-
-  /** Starts an HTTP server on {@code 127.0.0.1} with an ephemeral port. */
   public EmbeddedMockServer() throws IOException {
+    registry = defaultRegistry();
     server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext("/", this::dispatch);
     server.setExecutor(null);
     server.start();
-
-    int port = server.getAddress().getPort();
-    baseUrl = "http://127.0.0.1:" + port;
-
-    JsonObject recommendationsDefault = MockJsonLoader.load("recommendations-default.json");
-    JsonObject recommendationsPersonalized = MockJsonLoader.load("recommendations-personalized.json");
-    recommendationsHandler = new RecommendationsHandler(
-        recommendationsDefault, recommendationsPersonalized);
+    baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
   }
 
-  /** Base URL for API and UI tests (e.g. {@code http://127.0.0.1:54321}). */
+  /** Registry used by this server (for tests that add custom handlers). */
+  public MockRouteRegistry routeRegistry() {
+    return registry;
+  }
+
   public String baseUrl() {
     return baseUrl;
   }
 
   private void dispatch(HttpExchange exchange) throws IOException {
-    String path = exchange.getRequestURI().getPath();
-    String method = exchange.getRequestMethod();
-
-    if ("/onboarding".equals(path) || "/onboarding.html".equals(path)) {
-      onboardingHandler.handle(exchange);
-      return;
-    }
-
-    if (path.startsWith("/v1/profile/") && path.endsWith("/vod-preferences")) {
-      vodPreferencesHandler.handle(exchange, method, path);
-      return;
-    }
-
-    if (path.startsWith("/v1/profile/") && path.endsWith("/recommendations")) {
-      recommendationsHandler.handle(exchange, path);
-      return;
-    }
-
-    HttpResponses.sendJson(exchange, 404, "{\"error\":\"not_found\"}");
+    registry.dispatch(exchange);
   }
 
-  /** Stops the embedded server. */
+  private static MockRouteRegistry defaultRegistry() {
+    JsonObject recommendationsDefault = MockJsonLoader.load("recommendations-default.json");
+    JsonObject recommendationsPersonalized = MockJsonLoader.load("recommendations-personalized.json");
+    return new MockRouteRegistry()
+        .register(new OnboardingStaticHandler())
+        .register(new OnboardingSurveyHandler())
+        .register(new SurveyMoviesHandler())
+        .register(new VodPreferencesHandler())
+        .register(new RecommendationsHandler(recommendationsDefault, recommendationsPersonalized));
+  }
+
   @Override
   public void close() {
     server.stop(0);
   }
 }
-

@@ -1,0 +1,6 @@
+{
+  "error": "validation_error",
+  "message": "At least 5 movie_ids are required when skipped is false",
+  "field": "movie_ids",
+  "min_required": 5
+}

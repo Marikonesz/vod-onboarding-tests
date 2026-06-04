@@ -1,0 +1,12 @@
+---
+description: Test catalog in git is canonical for case ids and TestRail export
+globs: src/test/resources/test-cases/**/*
+alwaysApply: false
+---
+
+# Catalog source of truth
+
+- Edit `src/test/resources/test-cases/*.json` only (not docs copy; run `./gradlew syncCatalogDocs` to mirror).
+- Keep `@TmsLink` in tests aligned with catalog `id`.
+- Set `automated_in` to `ClassName.methodName` for automated cases.
+- Run `./gradlew validateCatalog` before committing catalog changes.

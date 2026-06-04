@@ -33,6 +33,7 @@ This file stores your prompts to the AI in chronological order.
 | 25 | `yep` (add JavaDoc to key public methods) |
 | 26 | `@ApiTestBase @UiTestBase where is common basetest? if you remove it - add note to mistakes in prompts` |
 | 27 | `basetest cannot be called MockServerTestBase - we dont test mockserver we crete a prototype of testing framework with possibility a quick switch to real back and frontend. add this possibilty and add browser fatory instead of srong chromium use(chromium have to be default)` |
+| 28 | `do it` (close assignment gaps: one-time survey API, min 5 movies validation, genre-filtered movies, VP-UI-005/006, README 80% note) |
 
 ---
 
@@ -225,6 +226,18 @@ yep
 basetest cannot be called MockServerTestBase - we dont test mockserver we crete a prototype of testing framework with possibility a quick switch to real back and frontend. add this possibilty and add browser fatory instead of srong chromium use(chromium have to be default)
 ```
 
+### Prompt 28
+
+```text
+do it
+```
+
+(Context: implement assignment gap closure — one-time survey endpoint, API min 5 movies, genre-filtered survey-movies, UI tests VP-UI-005/006, contract/catalog updates.)
+
+## AI-generated share (~80%)
+
+Most of `vod-preferences.json`, mock route handlers, and JUnit/Playwright tests were LLM-drafted from the onboarding brief; stabilizing edits are logged in the mistakes table below and in git history. Human gates: `./gradlew test`, `validateCatalog`, PR review.
+
 ## Note about AI mistake (server mocking)
 
 - I made a server-mocking architecture mistake by mixing a virtual base host (`app.vod-platform.local`) with API calls that still required real DNS resolution in this environment.
@@ -246,6 +259,8 @@ basetest cannot be called MockServerTestBase - we dont test mockserver we crete 
 | Package organization preference | Initially kept two cross-cutting folders (`shared` + `harness`) after user asked about one `common` folder | Extra mental overhead when locating common code | Consolidate to `common/{domain,fixtures,catalog,harness}` and update imports/docs |
 | Test base naming | Deleted `support.PlaywrightTestBase` without an obvious “common base test” next to `ApiTestBase` / `UiTestBase` | Looked like there is no shared parent; only API/UI bases visible in `api/` and `ui/` packages | Shared parent: `common.harness.BaseTest`; document inheritance in both bases + README |
 | Test base naming | Named shared base `MockServerTestBase` | Implies tests are *about* the mock server; framework is a prototype with mock/real switch | Rename to `BaseTest`; add `TestEnvironment` (mock vs real) and `BrowserFactory` (Chromium default) |
+| Assignment gaps (2025) | API allowed POST with 3 genres and 0 movies; no one-time survey endpoint | Product requires 5 movies when not skipped; survey once per profile | Add `onboarding-survey`, `survey-movies`, `min_required=5` validation, VP-014…017 and VP-UI-005/006 |
+| Dynamic movies UI | Static `movie-1`…`movie-6` in HTML broke flow after genre filter | VP-UI-004 could not pick 5 movies for action+comedy+drama | Load movies from `survey-movies`; extend catalog with movie-7/8; UI uses `selectFirstMovies(5)` |
 
 ## Note about concern-based refactor (follow-up)
 

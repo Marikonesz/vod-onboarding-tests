@@ -1,9 +1,22 @@
-# API mock package
+# API mock (`api/mock`)
 
-All embedded HTTP mock logic lives here (nothing under `legacy/` or `support/`).
+Embedded in-process HTTP server for onboarding HTML and VOD API endpoints.
 
-- `EmbeddedMockServer` — binds ephemeral port, routes requests
-- `handlers/` — onboarding HTML, vod-preferences, recommendations, HTTP response helpers
+## Layout
+
+- `EmbeddedMockServer` — binds ephemeral port, delegates to `MockRouteRegistry`
+- `MockRouteHandler` — implement and register new routes (no monolithic dispatch edits)
+- `MockRouteRegistry` — ordered handler list (first match wins)
+- `handlers/` — route implementations
 - `rules/` — pure validation policy (`VodPreferencesRules`)
 
-Shared in-memory state: `shared.domain.PreferencesState`.
+## Adding a new feature
+
+1. Add JSON fixtures under `src/test/resources/mocks/{feature}/`.
+2. Create a handler class implementing `MockRouteHandler`.
+3. Register it in `EmbeddedMockServer.defaultRegistry()` or on a test-specific registry.
+4. Update `docs/contract/{feature}.md`.
+
+## State
+
+In-memory scenario state: `common.domain.ScenarioState` (reset in `BaseTest` for mock target).

@@ -1,0 +1,32 @@
+# Gradle / Java
+build/
+.gradle/
+out/
+bin/
+target/
+*.class
+
+# Test & report artifacts (also under build/ for this project)
+playwright-report/
+test-results/
+allure-results/
+
+# IDE
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# OS
+.DS_Store
+
+# Real-environment secrets (VOD_BEARER_TOKEN, VOD_API_KEY, etc.)
+.env
+.env.*
+!.env.example
+
+# Cursor: commit .cursor/rules/ and .cursor/skills/; ignore local-only files
+.cursor/debug-*.log
+.cursor/plans/

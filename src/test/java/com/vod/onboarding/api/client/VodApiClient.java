@@ -5,6 +5,7 @@ import com.microsoft.playwright.APIRequestContext;
 import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.options.RequestOptions;
 import com.vod.onboarding.common.fixtures.JsonSupport;
+import com.vod.onboarding.common.harness.ApiLastResponseHolder;
 import io.qameta.allure.Step;
 
 import java.util.LinkedHashMap;
@@ -67,6 +68,23 @@ public final class VodApiClient {
     return baseUrl + "/v1/profile/" + profileId + "/recommendations";
   }
 
+  /** Absolute URL for {@code GET /v1/profile/{profileId}/onboarding-survey}. */
+  public String onboardingSurveyUrl(String profileId) {
+    return baseUrl + "/v1/profile/" + profileId + "/onboarding-survey";
+  }
+
+  /** Absolute URL for {@code GET /v1/profile/{profileId}/survey-movies}. */
+  public String surveyMoviesUrl(String profileId, String... genreIds) {
+    StringBuilder url = new StringBuilder(baseUrl)
+        .append("/v1/profile/")
+        .append(profileId)
+        .append("/survey-movies");
+    if (genreIds != null && genreIds.length > 0) {
+      url.append("?genre_ids=").append(String.join(",", genreIds));
+    }
+    return url.toString();
+  }
+
   /** POST preferences JSON for the given profile. */
   @Step("POST vod-preferences for profile {profileId}")
   public APIResponse postPreferences(String profileId, String json) {
@@ -75,7 +93,9 @@ public final class VodApiClient {
             .setData(json)
             .setHeader("Content-Type", "application/json");
     applyAuth(options);
-    APIResponse response = api.post(vodPreferencesUrl(profileId), options);
+    String url = vodPreferencesUrl(profileId);
+    APIResponse response = api.post(url, options);
+    ApiLastResponseHolder.record("POST", url, response);
     updateCookiesFromResponse(response);
     return response;
   }
@@ -85,7 +105,33 @@ public final class VodApiClient {
   public APIResponse getPreferences(String profileId) {
     RequestOptions options = RequestOptions.create();
     applyAuth(options);
-    APIResponse response = api.get(vodPreferencesUrl(profileId), options);
+    String url = vodPreferencesUrl(profileId);
+    APIResponse response = api.get(url, options);
+    ApiLastResponseHolder.record("GET", url, response);
+    updateCookiesFromResponse(response);
+    return response;
+  }
+
+  /** GET one-time survey eligibility for the given profile. */
+  @Step("GET onboarding-survey for profile {profileId}")
+  public APIResponse getOnboardingSurvey(String profileId) {
+    RequestOptions options = RequestOptions.create();
+    applyAuth(options);
+    String url = onboardingSurveyUrl(profileId);
+    APIResponse response = api.get(url, options);
+    ApiLastResponseHolder.record("GET", url, response);
+    updateCookiesFromResponse(response);
+    return response;
+  }
+
+  /** GET movie suggestions filtered by genre ids (query {@code genre_ids}). */
+  @Step("GET survey-movies for profile {profileId}")
+  public APIResponse getSurveyMovies(String profileId, String... genreIds) {
+    RequestOptions options = RequestOptions.create();
+    applyAuth(options);
+    String url = surveyMoviesUrl(profileId, genreIds);
+    APIResponse response = api.get(url, options);
+    ApiLastResponseHolder.record("GET", url, response);
     updateCookiesFromResponse(response);
     return response;
   }
@@ -95,7 +141,9 @@ public final class VodApiClient {
   public APIResponse getRecommendations(String profileId) {
     RequestOptions options = RequestOptions.create();
     applyAuth(options);
-    APIResponse response = api.get(recommendationsUrl(profileId), options);
+    String url = recommendationsUrl(profileId);
+    APIResponse response = api.get(url, options);
+    ApiLastResponseHolder.record("GET", url, response);
     updateCookiesFromResponse(response);
     return response;
   }

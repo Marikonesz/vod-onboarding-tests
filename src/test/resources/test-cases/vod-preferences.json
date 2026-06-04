@@ -1,6 +1,6 @@
 {
   "suite": "VOD Profile Personalization",
-  "feature": "Опитувальник зацікавленостей нового профілю",
+  "feature": "New profile interest survey",
   "cases": [
     {
       "id": "VP-001",
@@ -159,38 +159,86 @@
       "automated_in": "VodPreferencesApiTest.postFullMovieSelection_returns201"
     },
     {
+      "id": "VP-014",
+      "title": "Fewer than 5 movies rejected when not skipped",
+      "type": "negative",
+      "layer": "api",
+      "preconditions": ["skipped=false", "3+ genre_ids"],
+      "steps": [
+        { "action": "POST with 3 genre_ids and 2 movie_ids", "expected": "HTTP 400 validation_error, field=movie_ids, min_required=5" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "VodPreferencesApiTest.postThreeGenresTwoMovies_returns400"
+    },
+    {
+      "id": "VP-015",
+      "title": "One-time survey eligible for new profile",
+      "type": "positive",
+      "layer": "api",
+      "preconditions": ["Survey never completed"],
+      "steps": [
+        { "action": "GET /v1/profile/{id}/onboarding-survey", "expected": "show_survey=true, survey_completed=false" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "OnboardingSurveyApiTest.onboardingSurvey_newProfile_showSurveyTrue"
+    },
+    {
+      "id": "VP-016",
+      "title": "Survey hidden after save or skip",
+      "type": "positive",
+      "layer": "api",
+      "preconditions": ["POST vod-preferences completed once"],
+      "steps": [
+        { "action": "GET onboarding-survey", "expected": "show_survey=false, survey_completed=true" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "OnboardingSurveyApiTest.onboardingSurvey_afterSave_showSurveyFalse"
+    },
+    {
+      "id": "VP-017",
+      "title": "Survey movies list filtered by genre_ids",
+      "type": "positive",
+      "layer": "api",
+      "preconditions": [],
+      "steps": [
+        { "action": "GET /v1/profile/{id}/survey-movies?genre_ids=genre-action,genre-comedy", "expected": "movies match selected genres only" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "OnboardingSurveyApiTest.surveyMovies_filteredByGenres"
+    },
+    {
       "id": "VP-UI-001",
-      "title": "Далі disabled until 3 genres",
+      "title": "'Next' disabled until 3 genres",
       "type": "positive",
       "layer": "ui",
       "preconditions": ["Onboarding screen step 1"],
       "steps": [
-        { "action": "Select 0-2 genres", "expected": "btn-next disabled" },
-        { "action": "Select 3rd genre", "expected": "btn-next enabled" }
+        { "action": "Select 0-2 genres", "expected": "<btn-next> disabled" },
+        { "action": "Select 3rd genre", "expected": "<btn-next> enabled" }
       ],
       "automation_candidate": true,
       "automated_in": "OnboardingUiTest.nextButton_disabledUntilThreeGenres"
     },
     {
       "id": "VP-UI-002",
-      "title": "Далі advances to movies step",
+      "title": "'Next' advances to movies step",
       "type": "positive",
       "layer": "ui",
       "preconditions": ["3 genres selected on step 1"],
       "steps": [
-        { "action": "Click Далі", "expected": "Movies step visible, step label Крок 2, next disabled" }
+        { "action": "Click 'Next'", "expected": "Movies step visible, step label 'Step 2', <btn-next> disabled" }
       ],
       "automation_candidate": true,
       "automated_in": "OnboardingUiTest.nextButton_advancesToMovieStep"
     },
     {
       "id": "VP-UI-003",
-      "title": "Пропустити applies default recommendations",
+      "title": "'Skip' applies default recommendations",
       "type": "positive",
       "layer": "ui",
       "preconditions": ["Onboarding visible"],
       "steps": [
-        { "action": "Click Пропустити", "expected": "Status shows default recommendations" }
+        { "action": "Click 'Skip'", "expected": "<status> shows default recommendations" }
       ],
       "automation_candidate": true,
       "automated_in": "OnboardingUiTest.skipButton_usesDefaultRecommendations"
@@ -206,6 +254,31 @@
       ],
       "automation_candidate": true,
       "automated_in": "OnboardingUiTest.completeFlow_showsPersonalizedRecommendations"
+    },
+    {
+      "id": "VP-UI-005",
+      "title": "'Finish' disabled until 5 movies",
+      "type": "positive",
+      "layer": "ui",
+      "preconditions": ["On step 2 after 3 genres"],
+      "steps": [
+        { "action": "Select 4 movies", "expected": "<btn-next> disabled" },
+        { "action": "Select 5th movie", "expected": "<btn-next> enabled" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "OnboardingUiTest.finishButton_disabledUntilFiveMovies"
+    },
+    {
+      "id": "VP-UI-006",
+      "title": "Survey not shown after already completed",
+      "type": "positive",
+      "layer": "ui",
+      "preconditions": ["Survey completed via API"],
+      "steps": [
+        { "action": "Open onboarding page", "expected": "<status> shows survey already completed" }
+      ],
+      "automation_candidate": true,
+      "automated_in": "OnboardingUiTest.survey_hiddenWhenAlreadyCompleted"
     }
   ]
 }

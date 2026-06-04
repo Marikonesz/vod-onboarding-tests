@@ -1,11 +1,5 @@
-# Test case catalog
+# Test cases mirror
 
-**Source of truth:** [`src/test/resources/test-cases/vod-preferences.json`](../../src/test/resources/test-cases/vod-preferences.json)
+Files here are synced from `src/test/resources/test-cases/` via `./gradlew syncCatalogDocs` or `exportTestRail`.
 
-The file in this folder is kept for documentation visibility; update the resource copy first, then sync here if needed.
-
-Export to TestRail CSV:
-
-```bash
-./gradlew exportTestRail
-```
+**Do not edit manually** — change the canonical copy under `src/test/resources/test-cases/`.

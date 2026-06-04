@@ -1,7 +1,7 @@
 package com.vod.onboarding.common.harness;
 
 import com.vod.onboarding.api.mock.EmbeddedMockServer;
-import com.vod.onboarding.common.domain.PreferencesState;
+import com.vod.onboarding.common.domain.ScenarioState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -27,7 +27,7 @@ public abstract class BaseTest {
   void baseSetUp() throws Exception {
     usingMock = TestEnvironment.useMock();
     if (usingMock) {
-      PreferencesState.reset();
+      ScenarioState.reset();
       mockServer = new EmbeddedMockServer();
       baseUrl = mockServer.baseUrl();
     } else {

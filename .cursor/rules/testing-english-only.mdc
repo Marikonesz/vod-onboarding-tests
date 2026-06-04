@@ -1,0 +1,10 @@
+---
+description: Tests and catalog must use English only
+globs: src/test/**/*,docs/**/*,prompts/**/*
+alwaysApply: false
+---
+
+# English only
+
+- All test `@DisplayName`, catalog JSON, prototype HTML UI strings, and agent-generated briefs must be English.
+- Do not introduce Cyrillic or other non-English UI copy in source files.

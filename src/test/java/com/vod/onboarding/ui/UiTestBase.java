@@ -1,9 +1,11 @@
 package com.vod.onboarding.ui;
 
+import com.microsoft.playwright.APIRequestContext;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.vod.onboarding.api.client.VodApiClient;
 import com.vod.onboarding.common.harness.BaseTest;
 import com.vod.onboarding.common.harness.BrowserFactory;
 import com.vod.onboarding.common.harness.PlaywrightTraceExtension;
@@ -12,6 +14,8 @@ import com.vod.onboarding.ui.pages.OnboardingPage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
+import com.vod.onboarding.common.harness.RealSmokeGuard;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
@@ -25,6 +29,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  *
  * <p>Use {@link #newPage()} and {@link #openOnboarding(Page, String)} to drive the survey UI.
  */
+@ExtendWith(RealSmokeGuard.class)
 public abstract class UiTestBase extends BaseTest {
   @RegisterExtension
   final PlaywrightTraceExtension playwrightTrace = new PlaywrightTraceExtension();
@@ -76,5 +81,18 @@ public abstract class UiTestBase extends BaseTest {
    */
   protected OnboardingPage openOnboarding(Page page, String profileId) {
     return onboardingPage(page).open(baseUrl, profileId);
+  }
+
+  /** Seeds survey completion via API (e.g. skip) before opening the UI. */
+  protected void seedSurveySkipped(String profileId) {
+    Playwright pw = Playwright.create();
+    try {
+      APIRequestContext api = pw.request().newContext();
+      new VodApiClient(api, baseUrl)
+          .postPreferences(profileId, "{\"genre_ids\":[],\"movie_ids\":[],\"skipped\":true}");
+      api.dispose();
+    } finally {
+      pw.close();
+    }
   }
 }

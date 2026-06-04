@@ -15,6 +15,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import com.vod.onboarding.common.fixtures.ApiAssertions;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Epic("VOD onboarding")
@@ -51,14 +53,14 @@ class VodPreferencesApiTest extends ApiTestBase {
     String profileId = "profile-vp-002";
     vodApi.postPreferences(profileId, """
         {"genre_ids":["genre-action","genre-comedy","genre-scifi"],
-         "movie_ids":["movie-1"],"skipped":false}
+         "movie_ids":["movie-1","movie-2","movie-3","movie-4","movie-5"],"skipped":false}
         """);
 
     APIResponse get = vodApi.getPreferences(profileId);
     assertThat(get.status()).isEqualTo(200);
     JsonObject body = vodApi.parseJson(get);
     assertThat(body.getAsJsonArray("genre_ids")).hasSize(3);
-    assertThat(body.getAsJsonArray("movie_ids").get(0).getAsString()).isEqualTo("movie-1");
+    assertThat(body.getAsJsonArray("movie_ids")).hasSize(5);
   }
 
   @Test
@@ -94,7 +96,7 @@ class VodPreferencesApiTest extends ApiTestBase {
   void postExactlyThreeGenres_returns201() {
     APIResponse response = vodApi.postPreferences("profile-vp-005", """
         {"genre_ids":["genre-action","genre-comedy","genre-drama"],
-         "movie_ids":[],"skipped":false}
+         "movie_ids":["movie-1","movie-2","movie-3","movie-4","movie-5"],"skipped":false}
         """);
 
     assertThat(response.status()).isEqualTo(201);
@@ -183,16 +185,18 @@ class VodPreferencesApiTest extends ApiTestBase {
   void postTwice_secondWinsOnGet() {
     String profileId = "profile-vp-012";
     vodApi.postPreferences(profileId, """
-        {"genre_ids":["genre-action","genre-comedy","genre-drama"],"movie_ids":[],"skipped":false}
+        {"genre_ids":["genre-action","genre-comedy","genre-drama"],
+         "movie_ids":["movie-1","movie-2","movie-3","movie-4","movie-5"],"skipped":false}
         """);
     vodApi.postPreferences(profileId, """
         {"genre_ids":["genre-horror","genre-romance","genre-scifi"],
-         "movie_ids":["movie-9"],"skipped":false}
+         "movie_ids":["movie-1","movie-2","movie-3","movie-4","movie-6"],"skipped":false}
         """);
 
     JsonObject body = vodApi.parseJson(vodApi.getPreferences(profileId));
     assertThat(body.getAsJsonArray("genre_ids").get(0).getAsString()).isEqualTo("genre-horror");
-    assertThat(body.getAsJsonArray("movie_ids").get(0).getAsString()).isEqualTo("movie-9");
+    assertThat(body.getAsJsonArray("movie_ids")).hasSize(5);
+    assertThat(body.getAsJsonArray("movie_ids").get(4).getAsString()).isEqualTo("movie-6");
   }
 
   @Test
@@ -207,5 +211,19 @@ class VodPreferencesApiTest extends ApiTestBase {
         """);
 
     assertThat(response.status()).isEqualTo(201);
+  }
+
+  @Test
+  @TmsLink("VP-014")
+  @DisplayName("VP-014 POST with 3 genres and fewer than 5 movies returns 400")
+  void postThreeGenresTwoMovies_returns400() {
+    APIResponse response = vodApi.postPreferences("profile-vp-014", """
+        {"genre_ids":["genre-action","genre-comedy","genre-drama"],
+         "movie_ids":["movie-1","movie-2"],"skipped":false}
+        """);
+
+    assertThat(response.status()).isEqualTo(400);
+    JsonObject body = vodApi.parseJson(response);
+    ApiAssertions.assertValidationError(body, "movie_ids", 5);
   }
 }

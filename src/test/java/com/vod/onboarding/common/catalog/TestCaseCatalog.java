@@ -46,7 +46,10 @@ public record TestCaseCatalog(String suite, String feature, List<TestCase> cases
       List<String> preconditions,
       List<Step> steps,
       boolean automation_candidate,
-      String automated_in) {}
+      String automated_in,
+      String jira_key,
+      String confluence_url,
+      String testrail_case_id) {}
 
   /** Single step: action and expected result. */
   public record Step(String action, String expected) {}
