@@ -4,10 +4,6 @@ on:
   push:
   pull_request:
 
-env:
-  JAVA_VERSION: '17'
-  API_SHARD_TOTAL: 2
-
 permissions:
   contents: read
   pages: write
@@ -23,13 +19,15 @@ jobs:
       - run: ./gradlew validateCatalog --no-daemon
 
   api-tests:
-    name: API shard ${{ matrix.shard }}/${{ env.API_SHARD_TOTAL }}
+    name: API shard ${{ matrix.shard }}/${{ matrix.shard_total }}
     needs: validate
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1]
+        include:
+          - { shard: 0, shard_total: 2 }
+          - { shard: 1, shard_total: 2 }
     steps:
       - uses: ./.github/actions/setup-java-gradle
 
@@ -37,7 +35,7 @@ jobs:
         run: |
           ./gradlew test -Pgroups=api \
             -PshardIndex=${{ matrix.shard }} \
-            -PshardTotal=${{ env.API_SHARD_TOTAL }} \
+            -PshardTotal=${{ matrix.shard_total }} \
             --no-daemon
 
       - uses: ./.github/actions/upload-test-artifacts
