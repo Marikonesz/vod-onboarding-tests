@@ -153,8 +153,19 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
+      - name: Restore Allure history
+        uses: actions/cache@v4
+        with:
+          path: .allure-history
+          key: allure-history-${{ github.ref_name }}
+          restore-keys: |
+            allure-history-${{ github.ref_name }}
+            allure-history-
+
       - name: Build combined Allure report
         id: allure
+        env:
+          ALLURE_PAGES_BASE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         run: |
           mkdir -p build/allure-results
           find incoming-allure -type f \( -name '*-result.json' -o -name '*-container.json' \) \
@@ -163,7 +174,19 @@ jobs:
             echo "skip_publish=true" >> "$GITHUB_ENV"
             exit 0
           fi
+          bash .github/scripts/prepare-allure-history.sh build/allure-results .allure-history "$ALLURE_PAGES_BASE"
+          cat > build/allure-results/executor.json <<EOF
+          {
+            "name": "GitHub Actions",
+            "type": "github",
+            "url": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+            "buildName": "#${GITHUB_RUN_NUMBER}",
+            "buildUrl": "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}",
+            "reportName": "VOD Onboarding Tests"
+          }
+          EOF
           ./gradlew allureReport --no-daemon
+          bash .github/scripts/save-allure-history.sh build/reports/allure-report/allureReport .allure-history
 
       - name: Upload Allure report artifact
         if: env.skip_publish != 'true'

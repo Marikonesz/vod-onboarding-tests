@@ -81,7 +81,14 @@ Compile only (no browser):
 
 Open `build/reports/allure-report/allureReport/index.html`. Tests link to TMS via `@TmsLink("VP-001")` etc.
 
-**CI:** API **2** parallel shards + UI **1** job → **Test report** job (one summary table, one Allure `index.html` link). See `.github/workflows/tests.yml`. For a live URL, open **Settings → Pages → Build and deployment → Source: GitHub Actions** in your repo (`https://github.com/<owner>/<repo>/settings/pages`), then re-run the workflow; the job Summary will show **View Allure report**.
+**Trends / history (local):** before regenerating, copy the previous report’s `history/` into results, then run `allureReport` again:
+
+```bash
+cp -R build/reports/allure-report/allureReport/history build/allure-results/ 2>/dev/null || true
+./gradlew test allureReport
+```
+
+**CI:** API **2** parallel shards + UI **1** job → **Test report** merges results, restores **Allure history** (Actions cache + optional GitHub Pages), builds the report with **Overview trend charts**, deploys to Pages. Enable **Settings → Pages → Source: GitHub Actions** for a hosted `index.html` link in the job summary.
 
 ## TestRail export
 
