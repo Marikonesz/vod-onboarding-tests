@@ -8,6 +8,7 @@ import com.vod.onboarding.common.fixtures.PreferencesRequestBuilder;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -16,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Sample catalog-driven API checks (catalog is source of truth for case ids).
  */
+@Tag("api")
 class CatalogDrivenApiTest extends ApiTestBase {
 
   static Stream<TestCaseCatalog.TestCase> catalogApiCases() {

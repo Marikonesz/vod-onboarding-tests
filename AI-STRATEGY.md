@@ -24,10 +24,12 @@ com.vod.onboarding/
   api/                ApiTestBase
   api/client/         VodApiClient
   api/mock/           EmbeddedMockServer, MockRouteRegistry, handlers, rules
-  api/apiTests/       VodPreferencesApiTest
+  api/apiTests/       VodPreferencesApiTest, OnboardingSurveyApiTest, CatalogDrivenApiTest
   ui/                 UiTestBase
   ui/pages/           OnboardingPage
   ui/uiTests/         OnboardingUiTest
+config/allure/        categories.json (local Gradle reports)
+.github/workflows/    tests.yml — CI source of truth (Allure CLI + Pages in report job)
 ```
 
 ## AI-assisted pipeline (repo + agent)
@@ -69,8 +71,8 @@ flowchart TD
 
 | Layer | Responsibility |
 |-------|----------------|
-| Repo / Gradle | Tests, mocks, `validateCatalog`, `exportTestRail` |
-| CI | `gradle test`, Allure artifacts (no LLM) |
+| Repo / Gradle | Tests, mocks, `validateCatalog`, `exportTestRail`; local Allure via `./gradlew allureReport` |
+| CI | [`.github/workflows/tests.yml`](.github/workflows/tests.yml): matrix `gradle test`, upload raw Allure results; **report** job uses Allure CLI + GitHub Pages (not Gradle `allureReport`). Avoid custom report bash/scripts — see [PROMPTS.md](PROMPTS.md) mistake #38. |
 | Cursor agent | MCP read/write, edit repo, run CLI |
 | Human | Approve contract, catalog, Jira |
 
@@ -95,7 +97,7 @@ Referenced by skills; historical log in [PROMPTS.md](PROMPTS.md).
 | Confluence | Read | Agent MCP → `docs/briefs/*.md` |
 | Jira | Read + write (gated) | MCP fetch; draft bug only after human OK |
 | TestRail | Write | `./gradlew exportTestRail` + MCP or manual import |
-| Allure | Write | CI + local; trace on UI failure |
+| Allure | Write | Local: Gradle plugin; CI: Allure CLI in `report` job + Pages URL in job summary; UI Playwright trace on failure |
 | GitHub | Write | Actions, `gh` PR comments |
 
 Optional catalog fields: `jira_key`, `confluence_url`, `testrail_case_id`.

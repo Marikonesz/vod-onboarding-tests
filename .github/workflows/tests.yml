@@ -16,7 +16,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-java-gradle
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - run: ./gradlew validateCatalog --no-daemon
 
   api-tests:
@@ -31,7 +40,15 @@ jobs:
           - { shard: 1, shard_total: 2 }
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-java-gradle
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Run API tests
         run: |
@@ -40,11 +57,20 @@ jobs:
             -PshardTotal=${{ matrix.shard_total }} \
             --no-daemon
 
-      - uses: ./.github/actions/upload-test-artifacts
+      - name: Upload Allure results
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          suite: api
-          shard: ${{ matrix.shard }}
+          name: allure-results-api-shard-${{ matrix.shard }}
+          path: build/allure-results
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-results-api-shard-${{ matrix.shard }}
+          path: build/test-results/test
+          if-no-files-found: ignore
 
   ui-tests:
     name: UI tests
@@ -52,7 +78,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-java-gradle
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Install Playwright Chromium
         run: ./gradlew installPlaywright --no-daemon
@@ -60,10 +94,20 @@ jobs:
       - name: Run UI tests
         run: ./gradlew test -Pgroups=ui --no-daemon
 
-      - uses: ./.github/actions/upload-test-artifacts
+      - name: Upload Allure results
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          suite: ui
+          name: allure-results-ui-shard-0
+          path: build/allure-results
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-results-ui-shard-0
+          path: build/test-results/test
+          if-no-files-found: ignore
 
       - name: Upload Playwright traces on failure
         if: failure()
@@ -81,7 +125,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. Download Allure results from all shards
       - name: Download Allure results
         uses: actions/download-artifact@v4
         with:
@@ -90,7 +133,6 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
-      # 2. Install official Allure CLI directly on the runner
       - name: Install Allure CLI
         run: |
           wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
@@ -98,37 +140,29 @@ jobs:
           sudo mv allure-2.27.0 /opt/allure
           sudo ln -s /opt/allure/bin/allure /usr/bin/allure
 
-      # 3. Download previous history from GitHub Pages to keep charts/trends
       - name: Download previous Allure history
         run: |
           mkdir -p allure-results/history
-          # We fetch the history folder from your live GitHub Pages site
           curl -sSL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/history/history.json" > allure-results/history/history.json || true
           curl -sSL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/history/duration-trend.json" > allure-results/history/duration-trend.json || true
           curl -sSL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/history/categories-trend.json" > allure-results/history/categories-trend.json || true
           curl -sSL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/history/retry-trend.json" > allure-results/history/retry-trend.json || true
 
-      # 4. Generate the HTML report (Allure CLI will automatically merge the history)
       - name: Generate Allure Report
-        run: |
-          allure generate allure-results --clean -o allure-report
+        run: allure generate allure-results --clean -o allure-report
 
-      # 5. Upload the generated report folder as a Pages artifact
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: allure-report
 
-      # 6. Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
 
-      # 7. Add link to GitHub Summary
       - name: Add link to Summary
         if: always()
         run: |
-          echo "### 🚀 Tests Completed!" >> $GITHUB_STEP_SUMMARY
-          echo "Allure Report has been successfully generated and published." >> $GITHUB_STEP_SUMMARY
+          echo "### Tests completed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🔗 **[Open Allure Report](${{ steps.deployment.outputs.page_url }})**" >> $GITHUB_STEP_SUMMARY
+          echo "[Open Allure report](${{ steps.deployment.outputs.page_url }})" >> $GITHUB_STEP_SUMMARY

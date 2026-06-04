@@ -4,33 +4,42 @@ Standalone **Java** project for API-first and minimal UI regression of the profi
 
 ## Stack
 
-- Java 17, Gradle, JUnit 5
+- Java 17, Gradle 8.11, JUnit 5
 - Playwright for Java (API + browser)
 - Gson (JSON fixtures + test catalog)
-- AssertJ, Allure
+- AssertJ, Allure 2.29 (Gradle plugin 3.2)
 
 ## Structure
 
 ```
 src/test/java/com/vod/onboarding/
-  api/            — API tests (@Tag("api"))
-  api/            — VodPreferencesApiTest, ApiTestBase
-  api/client/     — VodApiClient
-  api/mock/       — embedded mock server (used when vod.test.target=mock)
-  ui/             — OnboardingUiTest, UiTestBase
-  ui/pages/       — OnboardingPage
-  common/harness/ — BaseTest, TestEnvironment, BrowserFactory
-  common/         — domain, fixtures, catalog
+  api/
+    apiTests/       — VodPreferencesApiTest, OnboardingSurveyApiTest, CatalogDrivenApiTest
+    client/         — VodApiClient
+    mock/           — embedded mock server (vod.test.target=mock)
+    ApiTestBase.java
+  ui/
+    uiTests/        — OnboardingUiTest
+    pages/          — OnboardingPage
+    UiTestBase.java
+  common/
+    harness/        — BaseTest, TestEnvironment, BrowserFactory, extensions
+    domain/         — ScenarioState (mock, thread-local)
+    fixtures/       — builders, assertions, JSON helpers
+    catalog/        — validateCatalog, TestRail export
 src/test/resources/
-  mocks/              — golden JSON
-  test-cases/         — TMS catalog (source of truth for TestRail export)
-  public/             — prototype onboarding.html
-docs/test-cases/      — mirror / reference copy of catalog
+  mocks/            — golden JSON
+  test-cases/       — TMS catalog (source of truth for TestRail export)
+  public/           — prototype onboarding.html
+config/allure/      — categories.json (Allure report categories)
+docs/
+  test-cases/       — mirror of catalog
+  contract/         — onboarding-api.md
 ```
 
 ## Prerequisites
 
-**JDK 17** (required — Java toolchain 17 and text blocks in tests).
+**JDK 17** (toolchain 17; text blocks in tests).
 
 ```bash
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)   # macOS
@@ -39,7 +48,7 @@ java -version   # should report 17.x
 
 ```bash
 cd vod-onboarding-tests
-./gradlew installPlaywright
+./gradlew installPlaywright   # Chromium (default UI browser)
 ```
 
 Compile only (no browser):
@@ -55,24 +64,41 @@ Compile only (no browser):
 ./gradlew test -Pgroups=api
 ./gradlew test -Pgroups=ui
 # Sequential (debug): ./gradlew test -PsingleThread
-# CI-style API shards (2 shards; UI single job):
+# CI-style API shards (2 shards; UI in one job):
 ./gradlew test -Pgroups=api -PshardIndex=0 -PshardTotal=2
 ./gradlew test -Pgroups=api -PshardIndex=1 -PshardTotal=2
 ./gradlew test -Pgroups=ui
 ```
 
-**Parallel via JUnit 5:** concurrent test methods in one JVM (`@Execution(CONCURRENT)`, `junit-platform.properties`). **CI shards** use Gradle `includeTestsMatching` per class (out-of-shard tests are not counted as JUnit skipped).
+**Parallel (local):** JUnit 5 concurrent methods in one JVM (`@Execution(CONCURRENT)` on `BaseTest`, `junit-platform.properties`). Use **Run with Gradle** in the IDE, or enable JUnit parallel in the run template.
 
-**CI workflow:** one **Test report** job — single pass-rate table + one Allure link to `index.html`.
+**CI sharding:** Gradle `includeTestsMatching` assigns whole test **classes** to shards (no fake JUnit “skipped” for other shards).
 
-**IDE:** use **Run tests with Gradle**, or enable JUnit parallel in the run template.
+**IDE — run one class:**
 
 ```bash
-./gradlew test --tests "com.vod.onboarding.api.VodPreferencesApiTest"
-./gradlew test --tests "com.vod.onboarding.ui.OnboardingUiTest"
+./gradlew test --tests "com.vod.onboarding.api.apiTests.VodPreferencesApiTest"
+./gradlew test --tests "com.vod.onboarding.ui.uiTests.OnboardingUiTest"
 ```
 
-## Allure report
+## CI (GitHub Actions)
+
+**Source of truth:** [`.github/workflows/tests.yml`](.github/workflows/tests.yml) — standard `actions/checkout`, `setup-java`, `setup-gradle`, and `upload-artifact` only (no local composite actions).
+
+| Job | What it does |
+|-----|----------------|
+| **Validate catalog** | `./gradlew validateCatalog` |
+| **API shard 0/2, 1/2** | `./gradlew test -Pgroups=api -PshardIndex=… -PshardTotal=2`; uploads `allure-results-api-shard-*` and `junit-results-api-shard-*` |
+| **UI tests** | Playwright Chromium + `./gradlew test -Pgroups=ui`; uploads Allure/JUnit + Playwright traces on failure |
+| **Test report** | Download Allure artifacts → install Allure CLI 2.27 → curl `history/*.json` from GitHub Pages → `allure generate --clean` → deploy to **Pages** |
+
+After a run, open the **Test report** job summary for the **Allure** link (`deployment.page_url`).
+
+**Pages setup (once per repo):** Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+
+**Local vs CI Allure:** local = `./gradlew allureReport`; CI = Allure command-line in the **Test report** job only.
+
+## Allure report (local)
 
 ```bash
 ./gradlew test
@@ -81,6 +107,8 @@ Compile only (no browser):
 
 Open `build/reports/allure-report/allureReport/index.html`. Tests link to TMS via `@TmsLink("VP-001")` etc.
 
+Categories: `config/allure/categories.json` (wired in `build.gradle.kts` — do not duplicate under `src/test/resources`).
+
 **Trends / history (local):**
 
 ```bash
@@ -88,8 +116,6 @@ Open `build/reports/allure-report/allureReport/index.html`. Tests link to TMS vi
 cp -R build/reports/allure-report/allureReport/history build/allure-results/ 2>/dev/null || true
 ./gradlew allureReport
 ```
-
-**CI:** **Test report** restores `allure-history` (cache + previous workflow artifact + Pages), merges shard results, runs `finalize-allure-report.sh` (double `allureReport` so **TREND** widgets populate), uploads `allure-history` for the next run. **Second workflow run** on the same branch should show trend charts; the first run may still be sparse.
 
 ## TestRail export
 
@@ -129,7 +155,7 @@ Agent import: see [docs/integrations/testrail.md](docs/integrations/testrail.md)
 ./gradlew test -PvodTestTarget=real -PvodBaseUrl=https://staging.example.com
 ```
 
-Mock handlers implement `POST/GET /v1/profile/*/vod-preferences`, `GET .../recommendations`, and `GET /onboarding`. Real environments should expose the same paths (or adapt page objects separately).
+Mock implements `POST/GET /v1/profile/{id}/vod-preferences`, `GET .../recommendations`, `GET .../onboarding-survey`, `GET .../survey-movies`, and `GET /onboarding` (HTML). Details: [docs/contract/onboarding-api.md](docs/contract/onboarding-api.md).
 
 `ScenarioState` applies only in mock mode (in-memory consistency for GET after POST).
 
@@ -146,7 +172,7 @@ Chromium is the default. Switch engine without code changes:
 ./gradlew test -Pgroups=ui -PvodBrowser=webkit -PvodHeadless=false
 ```
 
-Install extra browsers: `./gradlew installPlaywright` installs Chromium; run `npx playwright install firefox` (or use Playwright CLI from the project classpath) before using non-Chromium engines.
+Install extra browsers: `./gradlew installPlaywright` installs Chromium; run `npx playwright install firefox` (or Playwright CLI from the project classpath) before using non-Chromium engines.
 
 ## Playwright trace on failure (UI)
 
@@ -168,7 +194,7 @@ npx playwright show-trace build/playwright-traces/OnboardingUiTest_nextButton_di
 - [docs/ai-workflow.md](docs/ai-workflow.md) — agent operator steps
 - [docs/integrations/](docs/integrations/) — Confluence, Jira, TestRail via MCP
 - [docs/contract/onboarding-api.md](docs/contract/onboarding-api.md) — API contract stub
-- [PROMPTS.md](PROMPTS.md) — prompt log
+- [PROMPTS.md](PROMPTS.md) — prompt log and AI mistakes table
 - [prompts/](prompts/) — templates for agents
 - [src/test/resources/test-cases/vod-preferences.json](src/test/resources/test-cases/vod-preferences.json) — test catalog
 

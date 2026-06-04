@@ -18,8 +18,8 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
  * {@link com.vod.onboarding.ui.UiTestBase}.
  *
  * <p>Tests run concurrently via JUnit 5 parallel execution (see {@code junit-platform.properties}).
- * CI shards use Gradle {@code includeTestsMatching} (see {@code build.gradle.kts}), not
- * {@link CiShardExtension}, so out-of-shard tests are not reported as JUnit "skipped".
+ * CI shards use Gradle {@code includeTestsMatching} per test class (see {@code build.gradle.kts})
+ * so out-of-shard tests are not executed or reported as JUnit "skipped".
  */
 @Execution(ExecutionMode.CONCURRENT)
 public abstract class BaseTest {
