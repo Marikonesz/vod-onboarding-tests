@@ -7,6 +7,12 @@ on:
 jobs:
   api-tests:
     runs-on: ubuntu-latest
+    outputs:
+      total: ${{ steps.api-pass-rate.outputs.total }}
+      passed: ${{ steps.api-pass-rate.outputs.passed }}
+      failed: ${{ steps.api-pass-rate.outputs.failed }}
+      skipped: ${{ steps.api-pass-rate.outputs.skipped }}
+      pass_rate: ${{ steps.api-pass-rate.outputs.pass_rate }}
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +29,13 @@ jobs:
         run: ./gradlew validateCatalog --no-daemon
 
       - name: Run API tests
+        id: api-test
         run: ./gradlew test -Pgroups=api --no-daemon
+
+      - name: API test pass rate
+        if: always()
+        id: api-pass-rate
+        run: bash .github/scripts/summarize-test-results.sh "API tests"
 
       - name: Generate Allure report
         if: always()
@@ -43,8 +55,22 @@ jobs:
           name: allure-report-api
           path: build/reports/allure-report
 
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-results-api
+          path: build/test-results/test
+          if-no-files-found: ignore
+
   ui-tests:
     runs-on: ubuntu-latest
+    outputs:
+      total: ${{ steps.ui-pass-rate.outputs.total }}
+      passed: ${{ steps.ui-pass-rate.outputs.passed }}
+      failed: ${{ steps.ui-pass-rate.outputs.failed }}
+      skipped: ${{ steps.ui-pass-rate.outputs.skipped }}
+      pass_rate: ${{ steps.ui-pass-rate.outputs.pass_rate }}
     steps:
       - uses: actions/checkout@v4
 
@@ -61,7 +87,13 @@ jobs:
         run: ./gradlew installPlaywright --no-daemon
 
       - name: Run UI tests
+        id: ui-test
         run: ./gradlew test -Pgroups=ui --no-daemon
+
+      - name: UI test pass rate
+        if: always()
+        id: ui-pass-rate
+        run: bash .github/scripts/summarize-test-results.sh "UI tests"
 
       - name: Generate Allure report
         if: always()
@@ -88,3 +120,51 @@ jobs:
         with:
           name: allure-report-ui
           path: build/reports/allure-report
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-results-ui
+          path: build/test-results/test
+          if-no-files-found: ignore
+
+  test-summary:
+    name: Pass rate (all tests)
+    runs-on: ubuntu-latest
+    needs: [api-tests, ui-tests]
+    if: always()
+    steps:
+      - name: Combine pass rate in job summary
+        env:
+          API_TOTAL: ${{ needs.api-tests.outputs.total }}
+          API_PASSED: ${{ needs.api-tests.outputs.passed }}
+          API_FAILED: ${{ needs.api-tests.outputs.failed }}
+          API_SKIPPED: ${{ needs.api-tests.outputs.skipped }}
+          API_RATE: ${{ needs.api-tests.outputs.pass_rate }}
+          UI_TOTAL: ${{ needs.ui-tests.outputs.total }}
+          UI_PASSED: ${{ needs.ui-tests.outputs.passed }}
+          UI_FAILED: ${{ needs.ui-tests.outputs.failed }}
+          UI_SKIPPED: ${{ needs.ui-tests.outputs.skipped }}
+          UI_RATE: ${{ needs.ui-tests.outputs.pass_rate }}
+        run: |
+          sum() { echo "$(( ${1:-0} + ${2:-0} ))"; }
+          T=$(sum "$API_TOTAL" "$UI_TOTAL")
+          P=$(sum "$API_PASSED" "$UI_PASSED")
+          F=$(sum "$API_FAILED" "$UI_FAILED")
+          S=$(sum "$API_SKIPPED" "$UI_SKIPPED")
+          if [[ "$T" -gt 0 ]]; then
+            RATE=$(python3 -c "print(round(${P} / ${T} * 100, 1))")
+          else
+            RATE="0.0"
+          fi
+          echo "::notice title=Overall pass rate::${P}/${T} passed (${RATE}%) — failed: ${F}, skipped: ${S}"
+          {
+            echo "## Overall test pass rate"
+            echo ""
+            echo "| Suite | Pass rate | Passed | Failed | Skipped | Total |"
+            echo "|-------|----------:|-------:|-------:|--------:|------:|"
+            echo "| API | ${API_RATE:-n/a}% | ${API_PASSED:-0} | ${API_FAILED:-0} | ${API_SKIPPED:-0} | ${API_TOTAL:-0} |"
+            echo "| UI | ${UI_RATE:-n/a}% | ${UI_PASSED:-0} | ${UI_FAILED:-0} | ${UI_SKIPPED:-0} | ${UI_TOTAL:-0} |"
+            echo "| **All** | **${RATE}%** | **${P}** | **${F}** | **${S}** | **${T}** |"
+          } >> "$GITHUB_STEP_SUMMARY"
